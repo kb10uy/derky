@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies.glium]
 version = "0.27"
+
+[dependencies.ultraviolet]
+version = "0.7"
