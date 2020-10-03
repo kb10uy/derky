@@ -149,9 +149,9 @@ impl<'a> Iterator for FaceVertices<'a> {
         if self.2 < self.1.len() {
             let index_pair = &self.1[self.2];
             let result = (
-                self.0.vertices[index_pair.0.get()],
-                index_pair.1.map(|nzi| self.0.texture_uvs[nzi.get()]),
-                index_pair.2.map(|nzi| self.0.normals[nzi.get()]),
+                self.0.vertices[index_pair.0.get() - 1],
+                index_pair.1.map(|nzi| self.0.texture_uvs[nzi.get() - 1]),
+                index_pair.2.map(|nzi| self.0.normals[nzi.get() - 1]),
             );
             self.2 += 1;
             Some(result)

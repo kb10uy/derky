@@ -47,10 +47,16 @@ impl Model {
                 indices.push((vertex_base + i + 1) as u32);
                 indices.push((vertex_base + i + 2) as u32);
             }
+
+            // for i in 0..(original_vertices.len()) {
+            //     indices.push((vertex_base + i) as u32);
+            //     indices.push((vertex_base + (i + 1) % original_vertices.len()) as u32);
+            // }
         }
 
         let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
         let index_buffer = IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
+        // let index_buffer = IndexBuffer::new(facade, PrimitiveType::LinesList, &indices)?;
 
         Ok(Model {
             vertex_buffer,

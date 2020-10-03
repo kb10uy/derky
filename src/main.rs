@@ -1,8 +1,12 @@
-mod framework;
+mod application;
 mod model;
 mod wavefront_obj;
 
-use std::time::{Duration, Instant};
+use application::Application;
+use std::{
+    error::Error,
+    time::{Duration, Instant},
+};
 
 use glium::{
     glutin::{
@@ -16,19 +20,26 @@ use glium::{
 };
 use log::info;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     pretty_env_logger::init();
 
     let (event_loop, display) = intialize_window();
+    let mut app = Application::new(&display)?;
 
     info!("Starting event loop");
+    let mut last_at = Instant::now();
     event_loop.run(move |ev, _, control_flow| {
+        let now = Instant::now();
+        let delta = now - last_at;
+        last_at = now;
+
         let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 1.0);
+        target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+        app.draw(&mut target, delta);
         target.finish().expect("Failed to finish drawing display");
 
-        let next_frame_time = Instant::now() + Duration::from_secs_f64(16.66666e-3);
-        *control_flow = ControlFlow::WaitUntil(next_frame_time);
+        let next_frame_time = Instant::now() + Duration::from_nanos(16_666_666);
+        *control_flow = ControlFlow::Poll;
         match ev {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
