@@ -1,4 +1,5 @@
 mod framework;
+mod wavefront_obj;
 
 use std::time::{Duration, Instant};
 
@@ -12,8 +13,11 @@ use glium::{
     },
     Display, Surface,
 };
+use log::info;
 
 fn main() {
+    pretty_env_logger::init();
+
     let event_loop = EventLoop::new();
     let wb = WindowBuilder::new()
         .with_resizable(false)
@@ -21,6 +25,7 @@ fn main() {
     let cb = ContextBuilder::new();
     let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
 
+    info!("Starting event loop");
     event_loop.run(move |ev, _, control_flow| {
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 1.0);
