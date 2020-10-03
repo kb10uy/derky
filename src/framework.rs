@@ -10,14 +10,6 @@ use glium::{
 };
 use ultraviolet::{projection::perspective_gl, Mat4};
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-struct Vertex {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
-    pub texture_uv: [f32; 2],
-}
-implement_vertex!(Vertex, position, normal, texture_uv);
-
 pub struct Framework<'display> {
     display: &'display Display,
     view_matrix: Mat4,

@@ -1,4 +1,5 @@
 mod framework;
+mod model;
 mod wavefront_obj;
 
 use std::time::{Duration, Instant};
@@ -18,12 +19,7 @@ use log::info;
 fn main() {
     pretty_env_logger::init();
 
-    let event_loop = EventLoop::new();
-    let wb = WindowBuilder::new()
-        .with_resizable(false)
-        .with_inner_size(PhysicalSize::new(1280, 720));
-    let cb = ContextBuilder::new();
-    let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
+    let (event_loop, display) = intialize_window();
 
     info!("Starting event loop");
     event_loop.run(move |ev, _, control_flow| {
@@ -44,4 +40,15 @@ fn main() {
             _ => (),
         }
     });
+}
+
+fn intialize_window() -> (EventLoop<()>, Display) {
+    let event_loop = EventLoop::new();
+    let wb = WindowBuilder::new()
+        .with_resizable(false)
+        .with_inner_size(PhysicalSize::new(1280, 720));
+    let cb = ContextBuilder::new();
+    let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
+
+    (event_loop, display)
 }

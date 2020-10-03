@@ -126,10 +126,38 @@ impl Group {
 pub struct GroupFaces<'a>(&'a Group, usize);
 
 impl<'a> Iterator for GroupFaces<'a> {
+    type Item = FaceVertices<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.1 < self.0.face_index_pairs.len() {
+            let result = FaceVertices(self.0, &self.0.face_index_pairs[self.1], 0);
+            self.1 += 1;
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct FaceVertices<'a>(&'a Group, &'a [FaceIndexPair], usize);
+
+impl<'a> Iterator for FaceVertices<'a> {
     type Item = (Vec3, Option<Vec2>, Option<Vec3>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        None
+        if self.2 < self.1.len() {
+            let index_pair = &self.1[self.2];
+            let result = (
+                self.0.vertices[index_pair.0.get()],
+                index_pair.1.map(|nzi| self.0.texture_uvs[nzi.get()]),
+                index_pair.2.map(|nzi| self.0.normals[nzi.get()]),
+            );
+            self.2 += 1;
+            Some(result)
+        } else {
+            None
+        }
     }
 }
 
