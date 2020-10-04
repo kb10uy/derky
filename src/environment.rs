@@ -8,6 +8,7 @@ use ultraviolet::{projection::perspective_gl, Mat4, Vec3};
 pub struct Environment {
     view_matrix: Mat4,
     projection_matrix: Mat4,
+    directional_light: Vec3,
 }
 
 impl Environment {
@@ -15,6 +16,7 @@ impl Environment {
         Environment {
             view_matrix: Mat4::identity(),
             projection_matrix: perspective_gl(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
+            directional_light: Vec3::new(0.0, -1.0, 0.0).normalized(),
         }
     }
 
@@ -30,8 +32,10 @@ impl Environment {
     ) -> impl Uniforms {
         let view: [[f32; 4]; 4] = self.view_matrix.into();
         let projection: [[f32; 4]; 4] = self.projection_matrix.into();
+        let directional: [f32; 3] = self.directional_light.into();
         source
             .add("mat_view", view)
             .add("mat_projection", projection)
+            .add("lit_directional", directional)
     }
 }
