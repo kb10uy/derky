@@ -1,8 +1,9 @@
 //! 実際のアプリケーション挙動を記述する。
 
-use crate::{model::Model, wavefront_obj::WavefrontObj};
+use crate::{environment::Environment, model::Model, wavefront_obj::WavefrontObj};
 use std::{
     error::Error,
+    f32::consts::PI,
     fs::File,
     io::{prelude::*, BufReader},
     path::Path,
@@ -16,33 +17,31 @@ use ultraviolet::{projection::perspective_gl, Mat4, Vec3};
 pub struct Application {
     model: Model,
     program: Program,
-    count: Duration,
+    environment: Environment,
+    elapsed_time: Duration,
 }
 
 impl Application {
     pub fn new(display: &Display) -> Result<Application, Box<dyn Error + Send + Sync>> {
         let model = Application::load_model(display, "objects/thermal-grizzly.obj")?;
         let program = Application::load_program(display, "standard")?;
+        let mut environment = Environment::new();
+        environment.set_camera(Vec3::new(0.0, 0.0, 2.0));
+
         Ok(Application {
             model,
             program,
-            count: Duration::new(0, 0),
+            environment,
+            elapsed_time: Duration::new(0, 0),
         })
     }
 
     pub fn draw(&mut self, frame: &mut Frame, delta: Duration) {
-        let fov = 60.0f32.to_radians();
-        let aspect = 16.0 / 9.0;
-        let rot_speed = 3.1415926f32;
+        let angle = PI * self.elapsed_time.as_secs_f32();
 
-        let mat_model: [[f32; 4]; 4] =
-            Mat4::from_rotation_z(rot_speed * self.count.as_secs_f32()).into();
-        let mat_view: [[f32; 4]; 4] = Mat4::from_translation(Vec3::new(0.0, 0.0, -2.0)).into();
-        let mat_projection: [[f32; 4]; 4] = perspective_gl(fov, aspect, 0.1, 1024.0).into();
-        let uniforms = uniform! {
+        let mat_model: [[f32; 4]; 4] = Mat4::from_rotation_z(angle).into();
+        let app_uniforms = uniform! {
             mat_model: mat_model,
-            mat_view: mat_view,
-            mat_projection: mat_projection,
         };
 
         let params = DrawParameters {
@@ -59,12 +58,12 @@ impl Application {
                 self.model.vertex_buffer(),
                 self.model.index_buffer(),
                 &self.program,
-                &uniforms,
+                &self.environment.add_environment(app_uniforms),
                 &params,
             )
             .expect("Should be drawn");
 
-        self.count += delta;
+        self.elapsed_time += delta;
     }
 
     /// モデルを読み込む。

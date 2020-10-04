@@ -1,4 +1,5 @@
 mod application;
+mod environment;
 mod model;
 mod wavefront_obj;
 
