@@ -4,6 +4,8 @@ use crate::wavefront_obj::Group;
 use std::error::Error;
 
 use glium::{backend::Facade, implement_vertex, index::PrimitiveType, IndexBuffer, VertexBuffer};
+use ultraviolet::Vec3;
+use log::info;
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -35,7 +37,7 @@ impl Model {
             for original_vertice in &original_vertices {
                 vertices.push(Vertex {
                     position: original_vertice.0.into(),
-                    normal: original_vertice.2.unwrap_or_default().into(),
+                    normal: original_vertice.2.unwrap_or(Vec3::new(0.0, 1.0, 0.0)).into(),
                     uv: original_vertice.1.unwrap_or_default().into(),
                 });
             }
@@ -54,6 +56,8 @@ impl Model {
         let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
         let index_buffer = IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
         // let index_buffer = IndexBuffer::new(facade, PrimitiveType::LinesList, &indices)?;
+
+        info!("Wavefront OBJ loaded; {} vertices", vertices.len());
 
         Ok(Model {
             vertex_buffer,

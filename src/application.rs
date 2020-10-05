@@ -41,7 +41,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
-        let model = Application::load_model(display, "objects/thermal-grizzly.obj")?;
+        let model = Application::load_model(display, "objects/utah-teapot.obj")?;
 
         let program_geometry = Application::load_program(display, "deferred_geometry")?;
         let program_lighting = Application::load_program(display, "deferred_lighting")?;
@@ -99,7 +99,8 @@ impl Application {
     ) -> AnyResult<()> {
         let angle = PI * self.elapsed_time.as_secs_f32();
 
-        let mat_model: [[f32; 4]; 4] = Mat4::from_rotation_z(angle).into();
+        let mat_model: [[f32; 4]; 4] =
+            (Mat4::from_scale(1.0) * Mat4::from_rotation_z(angle)).into();
         let uniforms = uniforms.add("mat_model", mat_model);
 
         let params = DrawParameters {
