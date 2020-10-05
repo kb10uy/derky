@@ -134,7 +134,7 @@ fn parse_face(
                     indices[2],
                 ));
             }
-            _ => return Err(ObjError::InvalidIndex.into()),
+            _ => return Err(ObjError::InvalidFaceVertex.into()),
         }
     }
 

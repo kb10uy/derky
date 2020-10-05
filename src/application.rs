@@ -12,7 +12,7 @@ use std::{
 
 use glium::{uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface};
 use log::error;
-use ultraviolet::{projection::perspective_gl, Mat4, Vec3};
+use ultraviolet::{Mat4, Vec3};
 
 pub struct Application {
     model: Model,

@@ -3,10 +3,7 @@
 use crate::wavefront_obj::Group;
 use std::error::Error;
 
-use glium::{
-    backend::Facade, implement_vertex, index::PrimitiveType, uniform, Display, Frame, IndexBuffer,
-    Program, Surface, VertexBuffer,
-};
+use glium::{backend::Facade, implement_vertex, index::PrimitiveType, IndexBuffer, VertexBuffer};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]

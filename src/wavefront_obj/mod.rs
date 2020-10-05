@@ -48,6 +48,7 @@ pub struct WavefrontObj {
     materials: Vec<Material>,
 }
 
+#[allow(dead_code)]
 impl WavefrontObj {
     /// このオブジェクトの名前を返す。
     pub fn name(&self) -> &str {
@@ -92,6 +93,7 @@ pub struct Group {
     face_index_pairs: Vec<Box<[FaceIndexPair]>>,
 }
 
+#[allow(dead_code)]
 impl Group {
     pub fn name(&self) -> &str {
         &self.name
