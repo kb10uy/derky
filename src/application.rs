@@ -16,7 +16,8 @@ use glium::{
     index::PrimitiveType,
     uniform,
     uniforms::{AsUniformValue, Uniforms, UniformsStorage},
-    Depth, DepthTest, Display, DrawParameters, Frame, IndexBuffer, Program, Surface, VertexBuffer,
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, IndexBuffer,
+    LinearBlendingFactor, Program, Surface, VertexBuffer,
 };
 use log::error;
 use ultraviolet::{Mat4, Vec3};
@@ -44,7 +45,7 @@ impl Application {
         let model = Application::load_model(display, "objects/thermal-grizzly.obj")?;
 
         let program_geometry = Application::load_program(display, "deferred_geometry")?;
-        let program_lighting = Application::load_program(display, "deferred_geometry")?;
+        let program_lighting = Application::load_program(display, "deferred_lighting")?;
         let program_composition = Application::load_program(display, "deferred_composition")?;
 
         let vertices_screen = VertexBuffer::new(
@@ -121,7 +122,40 @@ impl Application {
     }
 
     /// ライティングパスの描画をする。
-    pub fn draw_lighting(&mut self, lightsing_buffer: &mut SimpleFrameBuffer) -> AnyResult<()> {
+    pub fn draw_lighting(
+        &mut self,
+        lighting_buffer: &mut SimpleFrameBuffer,
+        uniforms: UniformsStorage<impl AsUniformValue, impl Uniforms>,
+    ) -> AnyResult<()> {
+        let light_direction = Vec3::new(0.1, -0.9, -0.4).normalized();
+        let light_color = Vec3::new(0.0, 1.0, 1.0);
+        let uniforms = uniforms
+            .add::<[f32; 3]>("lit_dir_direction", light_direction.into())
+            .add::<[f32; 3]>("lit_dir_color", light_color.into());
+
+        let params = DrawParameters {
+            blend: Blend {
+                color: BlendingFunction::Addition {
+                    source: LinearBlendingFactor::One,
+                    destination: LinearBlendingFactor::One,
+                },
+                alpha: BlendingFunction::Addition {
+                    source: LinearBlendingFactor::One,
+                    destination: LinearBlendingFactor::One,
+                },
+                constant_value: (1.0, 1.0, 1.0, 1.0),
+            },
+            ..Default::default()
+        };
+
+        lighting_buffer.draw(
+            &self.vertices_screen,
+            &self.indices_screen,
+            &self.program_lighting,
+            &uniforms,
+            &params,
+        )?;
+
         Ok(())
     }
 

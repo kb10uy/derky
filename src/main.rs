@@ -56,6 +56,8 @@ fn main() -> AnyResult<()> {
     info!("Starting event loop");
     let mut last_at = Instant::now();
     event_loop.run(move |ev, _, control_flow| {
+        let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
+
         // delta time 計算
         let now = Instant::now();
         let delta = now - last_at;
@@ -70,15 +72,21 @@ fn main() -> AnyResult<()> {
             .expect("Failed to process the geometry path");
 
         // ライティングパス
-        // lighting_buffer.clear_color(0.0, 0.0, 0.0, 0.0);
-        // app.draw_lighting(&mut lighting_buffer)
-        //     .expect("Failed to process the lighting path");
+        let lighting_uniforms = uniform! {
+            mat_screen: screen_matrix,
+            g_position: &buffer_refs.out_position,
+            g_normal: &buffer_refs.out_world_normal,
+        };
+
+        lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
+        app.draw_lighting(&mut lighting_buffer, lighting_uniforms)
+            .expect("Failed to process the lighting path");
 
         // 合成
-        let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let composition_uniforms = uniform! {
             mat_screen: screen_matrix,
-            tex_unlit: &buffer_refs.out_position, // &buffer_refs.out_albedo,
+            tex_unlit: &buffer_refs.out_albedo,
+            tex_lighting: &buffer_refs.lighting,
         };
 
         let mut target = display.draw();
