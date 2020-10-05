@@ -4,10 +4,7 @@ mod model;
 mod wavefront_obj;
 
 use application::Application;
-use std::{
-    error::Error,
-    time::{Duration, Instant},
-};
+use std::{error::Error, time::Instant};
 
 use glium::{
     glutin::{
@@ -39,7 +36,6 @@ fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         app.draw(&mut target, delta);
         target.finish().expect("Failed to finish drawing display");
 
-        let next_frame_time = Instant::now() + Duration::from_nanos(16_666_666);
         *control_flow = ControlFlow::Poll;
         match ev {
             Event::WindowEvent { event, .. } => match event {
@@ -61,6 +57,10 @@ fn intialize_window() -> (EventLoop<()>, Display) {
         .with_inner_size(PhysicalSize::new(1280, 720));
     let cb = ContextBuilder::new();
     let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
+    info!(
+        "Supported OpenGL version: {}",
+        display.get_opengl_version_string()
+    );
 
     (event_loop, display)
 }
