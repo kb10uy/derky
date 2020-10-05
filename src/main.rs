@@ -26,6 +26,7 @@ type AnyResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 /// 各種バッファの運搬用
 struct Buffers {
     out_albedo: Texture2d,
+    out_position: Texture2d,
     out_world_normal: Texture2d,
     lighting: Texture2d,
     depth: DepthTexture2d,
@@ -44,6 +45,7 @@ fn main() -> AnyResult<()> {
         &display,
         vec![
             ("out_albedo", &buffer_refs.out_albedo),
+            ("out_position", &buffer_refs.out_position),
             ("out_world_normal", &buffer_refs.out_world_normal),
         ],
         &buffer_refs.depth,
@@ -76,7 +78,7 @@ fn main() -> AnyResult<()> {
         let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let composition_uniforms = uniform! {
             mat_screen: screen_matrix,
-            tex_unlit: &buffer_refs.out_world_normal, // &buffer_refs.out_albedo,
+            tex_unlit: &buffer_refs.out_position, // &buffer_refs.out_albedo,
         };
 
         let mut target = display.draw();
@@ -123,6 +125,13 @@ fn initialize_buffers(display: &Display) -> AnyResult<Buffers> {
         1280,
         720,
     )?;
+    let out_position = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
     let out_world_normal = Texture2d::empty_with_format(
         display,
         UncompressedFloatFormat::F32F32F32F32,
@@ -147,6 +156,7 @@ fn initialize_buffers(display: &Display) -> AnyResult<Buffers> {
 
     Ok(Buffers {
         out_albedo,
+        out_position,
         out_world_normal,
         lighting,
         depth,

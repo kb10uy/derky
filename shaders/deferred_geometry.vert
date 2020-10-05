@@ -13,8 +13,10 @@ in vec3 normal;
 in vec2 uv;
 
 flat out vec3 v_normal;
+smooth out vec3 v_position;
 
 void main() {
     v_normal = normalize(mat_model * vec4(normal, 0.0)).xyz;
+    v_position = (mat_model * vec4(position, 1.0)).xyz;
     gl_Position = mat_projection * mat_view * mat_model * vec4(position, 1.0);
 }
