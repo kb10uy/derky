@@ -16,7 +16,9 @@ use glium::{
         ContextBuilder,
     },
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
-    uniform, Display, Surface,
+    uniform,
+    uniforms::UniformsStorage,
+    Display, Surface,
 };
 use log::info;
 use ultraviolet::Mat4;
@@ -68,7 +70,7 @@ fn main() -> AnyResult<()> {
 
         // ジオメトリパス
         frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-        app.draw_geometry(&mut frame_buffer)
+        app.draw_geometry(&mut frame_buffer, UniformsStorage::new("__dummy", 0f32))
             .expect("Failed to process the geometry path");
 
         // ライティングパス

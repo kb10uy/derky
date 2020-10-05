@@ -2,7 +2,6 @@
 
 use crate::{environment::Environment, model::Model, wavefront_obj::WavefrontObj, AnyResult};
 use std::{
-    error::Error,
     f32::consts::PI,
     fs::File,
     io::{prelude::*, BufReader},
@@ -93,13 +92,15 @@ impl Application {
     }
 
     /// ジオメトリパスの描画をする。
-    pub fn draw_geometry(&mut self, geometry_buffer: &mut MultiOutputFrameBuffer) -> AnyResult<()> {
+    pub fn draw_geometry(
+        &mut self,
+        geometry_buffer: &mut MultiOutputFrameBuffer,
+        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
+    ) -> AnyResult<()> {
         let angle = PI * self.elapsed_time.as_secs_f32();
 
         let mat_model: [[f32; 4]; 4] = Mat4::from_rotation_z(angle).into();
-        let app_uniforms = uniform! {
-            mat_model: mat_model,
-        };
+        let uniforms = uniforms.add("mat_model", mat_model);
 
         let params = DrawParameters {
             depth: Depth {
@@ -114,7 +115,7 @@ impl Application {
             self.model.vertex_buffer(),
             self.model.index_buffer(),
             &self.program_geometry,
-            &self.environment.add_environment(app_uniforms),
+            &self.environment.add_environment(uniforms),
             &params,
         )?;
 
@@ -125,7 +126,7 @@ impl Application {
     pub fn draw_lighting(
         &mut self,
         lighting_buffer: &mut SimpleFrameBuffer,
-        uniforms: UniformsStorage<impl AsUniformValue, impl Uniforms>,
+        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
     ) -> AnyResult<()> {
         let light_direction = Vec3::new(0.1, -0.9, -0.4).normalized();
         let light_color = Vec3::new(0.0, 1.0, 1.0);
@@ -152,7 +153,7 @@ impl Application {
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_lighting,
-            &uniforms,
+            &self.environment.add_environment(uniforms),
             &params,
         )?;
 
@@ -162,7 +163,7 @@ impl Application {
     pub fn draw_composition(
         &mut self,
         frame: &mut Frame,
-        uniforms: UniformsStorage<impl AsUniformValue, impl Uniforms>,
+        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
     ) -> AnyResult<()> {
         frame.draw(
             &self.vertices_screen,
