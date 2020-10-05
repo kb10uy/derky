@@ -10,7 +10,7 @@ uniform struct {
 } lights;
 */
 // per fragment
-smooth in vec3 v_normal;
+flat in vec3 v_normal;
 
 out vec4 out_albedo;
 out vec4 out_world_normal;

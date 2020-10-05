@@ -101,13 +101,11 @@ impl Application {
         };
 
         let params = DrawParameters {
-            /*
             depth: Depth {
                 test: DepthTest::IfLess,
                 write: true,
                 ..Default::default()
             },
-            */
             ..Default::default()
         };
 

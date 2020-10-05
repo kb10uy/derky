@@ -63,7 +63,7 @@ fn main() -> AnyResult<()> {
         app.tick(delta);
 
         // ジオメトリパス
-        frame_buffer.clear_color(0.0, 0.0, 0.0, 0.0);
+        frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
         app.draw_geometry(&mut frame_buffer)
             .expect("Failed to process the geometry path");
 
@@ -76,7 +76,7 @@ fn main() -> AnyResult<()> {
         let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let composition_uniforms = uniform! {
             mat_screen: screen_matrix,
-            tex_unlit: &buffer_refs.out_albedo,
+            tex_unlit: &buffer_refs.out_world_normal, // &buffer_refs.out_albedo,
         };
 
         let mut target = display.draw();
