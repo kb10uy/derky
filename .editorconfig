@@ -13,5 +13,5 @@ indent_size = 2
 [*.rs]
 indent_size = 4
 
-[*.{frag,vert}]
+[*.{frag,vert,glsl}]
 indent_size = 4
