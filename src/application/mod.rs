@@ -12,7 +12,7 @@ use crate::{
     wavefront_obj::WavefrontObj,
     AnyResult,
 };
-use std::{f32::consts::PI, fs::File, path::Path, time::Duration};
+use std::{fs::File, path::Path, time::Duration};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},

@@ -5,6 +5,7 @@ use ultraviolet::Vec4;
 
 /// マテリアル定義
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Material<'t> {
     /// Lambert モデル
     Diffuse { albedo: &'t Texture2d, color: Vec4 },
