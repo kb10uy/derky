@@ -1,6 +1,5 @@
 mod application;
-mod environment;
-mod model;
+mod rendering;
 mod wavefront_obj;
 
 use application::Application;
@@ -74,27 +73,29 @@ fn main() -> AnyResult<()> {
             .expect("Failed to process the geometry path");
 
         // ライティングパス
-        let lighting_uniforms = uniform! {
-            mat_screen: screen_matrix,
-            g_position: &buffer_refs.out_position,
-            g_normal: &buffer_refs.out_world_normal,
-        };
-
         lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-        app.draw_lighting(&mut lighting_buffer, lighting_uniforms)
-            .expect("Failed to process the lighting path");
+        app.draw_lighting(
+            &mut lighting_buffer,
+            uniform! {
+                mat_screen: screen_matrix,
+                g_position: &buffer_refs.out_position,
+                g_normal: &buffer_refs.out_world_normal,
+            },
+        )
+        .expect("Failed to process the lighting path");
 
         // 合成
-        let composition_uniforms = uniform! {
-            mat_screen: screen_matrix,
-            tex_unlit: &buffer_refs.out_albedo,
-            tex_lighting: &buffer_refs.lighting,
-        };
-
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
-        app.draw_composition(&mut target, composition_uniforms)
-            .expect("Failed to process the composition path");
+        app.draw_composition(
+            &mut target,
+            uniform! {
+                mat_screen: screen_matrix,
+                tex_unlit: &buffer_refs.out_albedo,
+                tex_lighting: &buffer_refs.lighting,
+            },
+        )
+        .expect("Failed to process the composition path");
         target.finish().expect("Failed to finish drawing display");
 
         // ウィンドウイベント

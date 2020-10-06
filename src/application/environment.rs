@@ -1,6 +1,6 @@
 //! シーン内の情報(ライトなど)を格納する `Environment` 関連のモジュール。
 
-use glium::uniforms::{AsUniformValue, Uniforms, UniformsStorage};
+use glium::{uniform, uniforms::Uniforms};
 use ultraviolet::{projection::perspective_gl, Mat4, Vec3};
 
 /// シーンの状態を表す。
@@ -26,18 +26,17 @@ impl Environment {
     }
 
     /// uniforms を追加する。
-    pub fn add_environment(
-        &self,
-        source: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
-    ) -> impl Uniforms {
+    pub fn get_unforms(&self) -> impl Uniforms {
         let view: [[f32; 4]; 4] = Mat4::from_translation(-self.camera_position).into();
         let projection: [[f32; 4]; 4] = self.projection_matrix.into();
         let directional: [f32; 3] = self.directional_light.into();
         let camera: [f32; 3] = self.camera_position.into();
-        source
-            .add("mat_view", view)
-            .add("mat_projection", projection)
-            .add("lit_directional", directional)
-            .add("cam_position", camera)
+
+        uniform! {
+            mat_view: view,
+            mat_projection: projection,
+            lit_directional: directional,
+            cam_position: camera,
+        }
     }
 }

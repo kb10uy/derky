@@ -1,24 +1,28 @@
 //! 実際のアプリケーション挙動を記述する。
 
-use crate::{environment::Environment, model::Model, wavefront_obj::WavefrontObj, AnyResult};
-use std::{
-    f32::consts::PI,
-    fs::File,
-    io::{prelude::*, BufReader},
-    path::Path,
-    time::Duration,
+mod environment;
+mod material;
+mod model;
+
+use environment::Environment;
+use model::Model;
+
+use crate::{
+    rendering::{load_program, UniformsSet},
+    wavefront_obj::WavefrontObj,
+    AnyResult,
 };
+use std::{f32::consts::PI, fs::File, path::Path, time::Duration};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     implement_vertex,
     index::PrimitiveType,
     uniform,
-    uniforms::{AsUniformValue, Uniforms, UniformsStorage},
+    uniforms::Uniforms,
     Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, IndexBuffer,
     LinearBlendingFactor, Program, Surface, VertexBuffer,
 };
-use log::error;
 use ultraviolet::{Mat4, Vec3};
 
 #[derive(Debug, Clone, Copy)]
@@ -27,6 +31,27 @@ struct CompositionVertex {
     uv: [f32; 2],
 }
 implement_vertex!(CompositionVertex, position, uv);
+
+const SCREEN_QUAD_VERTICES: [CompositionVertex; 4] = [
+    CompositionVertex {
+        position: [-1.0, 1.0, 0.0, 1.0],
+        uv: [0.0, 0.0],
+    },
+    CompositionVertex {
+        position: [1.0, 1.0, 0.0, 1.0],
+        uv: [1.0, 0.0],
+    },
+    CompositionVertex {
+        position: [1.0, -1.0, 0.0, 1.0],
+        uv: [1.0, 1.0],
+    },
+    CompositionVertex {
+        position: [-1.0, -1.0, 0.0, 1.0],
+        uv: [0.0, 1.0],
+    },
+];
+
+const SCREEN_QUAD_INDICES: [u16; 6] = [0, 3, 1, 1, 3, 2];
 
 pub struct Application {
     environment: Environment,
@@ -43,33 +68,13 @@ impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
         let model = Application::load_model(display, "objects/utah-teapot.obj")?;
 
-        let program_geometry = Application::load_program(display, "deferred_geometry")?;
-        let program_lighting = Application::load_program(display, "deferred_lighting")?;
-        let program_composition = Application::load_program(display, "deferred_composition")?;
+        let program_geometry = load_program(display, "deferred_geometry")?;
+        let program_lighting = load_program(display, "deferred_lighting")?;
+        let program_composition = load_program(display, "deferred_composition")?;
 
-        let vertices_screen = VertexBuffer::new(
-            display,
-            &[
-                CompositionVertex {
-                    position: [-1.0, 1.0, 0.0, 1.0],
-                    uv: [0.0, 0.0],
-                },
-                CompositionVertex {
-                    position: [1.0, 1.0, 0.0, 1.0],
-                    uv: [1.0, 0.0],
-                },
-                CompositionVertex {
-                    position: [1.0, -1.0, 0.0, 1.0],
-                    uv: [1.0, 1.0],
-                },
-                CompositionVertex {
-                    position: [-1.0, -1.0, 0.0, 1.0],
-                    uv: [0.0, 1.0],
-                },
-            ],
-        )?;
+        let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =
-            IndexBuffer::new(display, PrimitiveType::TrianglesList, &[0, 3, 1, 1, 3, 2])?;
+            IndexBuffer::new(display, PrimitiveType::TrianglesList, &SCREEN_QUAD_INDICES)?;
 
         let mut environment = Environment::new();
         environment.set_camera(Vec3::new(0.0, 0.0, 2.0));
@@ -95,13 +100,17 @@ impl Application {
     pub fn draw_geometry(
         &mut self,
         geometry_buffer: &mut MultiOutputFrameBuffer,
-        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
+        uniforms: impl Uniforms,
     ) -> AnyResult<()> {
         let angle = PI * self.elapsed_time.as_secs_f32();
-
-        let mat_model: [[f32; 4]; 4] =
+        let model_matrix: [[f32; 4]; 4] =
             (Mat4::from_scale(1.0) * Mat4::from_rotation_z(angle)).into();
-        let uniforms = uniforms.add("mat_model", mat_model);
+
+        let uniforms = UniformsSet::new(uniforms)
+            .add(self.environment.get_unforms())
+            .add(uniform! {
+                mat_model: model_matrix,
+            });
 
         let params = DrawParameters {
             depth: Depth {
@@ -116,7 +125,7 @@ impl Application {
             self.model.vertex_buffer(),
             self.model.index_buffer(),
             &self.program_geometry,
-            &self.environment.add_environment(uniforms),
+            &uniforms,
             &params,
         )?;
 
@@ -127,13 +136,17 @@ impl Application {
     pub fn draw_lighting(
         &mut self,
         lighting_buffer: &mut SimpleFrameBuffer,
-        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
+        uniforms: impl Uniforms,
     ) -> AnyResult<()> {
-        let light_direction = Vec3::new(0.1, -0.9, -0.4).normalized();
-        let light_color = Vec3::new(0.0, 1.0, 1.0);
-        let uniforms = uniforms
-            .add::<[f32; 3]>("lit_dir_direction", light_direction.into())
-            .add::<[f32; 3]>("lit_dir_color", light_color.into());
+        let light_direction: [f32; 3] = Vec3::new(0.1, -0.9, -0.4).normalized().into();
+        let light_color: [f32; 3] = Vec3::new(1.0, 1.0, 1.0).into();
+
+        let uniforms = UniformsSet::new(uniforms)
+            .add(self.environment.get_unforms())
+            .add(uniform! {
+                lit_dir_direction: light_direction,
+                lit_dir_color: light_color,
+            });
 
         let params = DrawParameters {
             blend: Blend {
@@ -154,7 +167,7 @@ impl Application {
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_lighting,
-            &self.environment.add_environment(uniforms),
+            &uniforms,
             &params,
         )?;
 
@@ -164,7 +177,7 @@ impl Application {
     pub fn draw_composition(
         &mut self,
         frame: &mut Frame,
-        uniforms: UniformsStorage<'static, impl AsUniformValue, impl Uniforms>,
+        uniforms: impl Uniforms,
     ) -> AnyResult<()> {
         frame.draw(
             &self.vertices_screen,
@@ -183,24 +196,5 @@ impl Application {
         let obj = WavefrontObj::from_reader(obj_file)?;
         let group = &obj.groups()[0];
         Model::from_group(display, group)
-    }
-
-    /// シェーダーを読み込む。
-    fn load_program(display: &Display, basename: &str) -> AnyResult<Program> {
-        let mut vertex_file = BufReader::new(File::open(format!("shaders/{}.vert", basename))?);
-        let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
-
-        let mut vertex_shader = String::with_capacity(1024);
-        let mut fragment_shader = String::with_capacity(1024);
-
-        vertex_file.read_to_string(&mut vertex_shader)?;
-        fragment_file.read_to_string(&mut fragment_shader)?;
-
-        let program = Program::from_source(display, &vertex_shader, &fragment_shader, None)
-            .map_err(|e| {
-                error!("Failed to compile the shader \"{}\": {}", basename, e);
-                e
-            })?;
-        Ok(program)
     }
 }
