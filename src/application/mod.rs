@@ -77,7 +77,7 @@ impl Application {
             IndexBuffer::new(display, PrimitiveType::TrianglesList, &SCREEN_QUAD_INDICES)?;
 
         let mut environment = Environment::new();
-        environment.set_camera(Vec3::new(0.0, 0.0, 2.0));
+        environment.set_camera(Vec3::new(0.0, 1.0, 2.0));
 
         Ok(Application {
             environment,
@@ -102,10 +102,7 @@ impl Application {
         geometry_buffer: &mut MultiOutputFrameBuffer,
         uniforms: impl Uniforms,
     ) -> AnyResult<()> {
-        let angle = PI * self.elapsed_time.as_secs_f32();
-        let model_matrix: [[f32; 4]; 4] =
-            (Mat4::from_scale(1.0) * Mat4::from_rotation_z(angle)).into();
-
+        let model_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let uniforms = UniformsSet::new(uniforms)
             .add(self.environment.get_unforms())
             .add(uniform! {
