@@ -1,0 +1,93 @@
+# Blender MTL File: 'Natsuki.blend'
+# Material Count: 8
+
+newmtl Accesories
+Ns 900.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.369376 0.035599
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+
+newmtl ClothesCutout
+Ns 47.790167
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+
+newmtl ClothesOpaque
+Ns 900.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.668894 0.797506 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+
+newmtl Eye
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
+
+newmtl Eyehairs
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
+map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
+
+newmtl Hair
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-hair.jpg
+
+newmtl Skin
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.663220 0.543091
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-body.jpg
+
+newmtl Underwears
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.314847 0.800000 0.457883
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png
+map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png
