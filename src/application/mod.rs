@@ -66,7 +66,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
-        let model = Application::load_model(display, "objects/utah-teapot.obj")?;
+        let model = Application::load_model(display, "objects/Natsuki.obj")?;
 
         let program_geometry = load_program(display, "deferred_geometry")?;
         let program_lighting = load_program(display, "deferred_lighting")?;
@@ -194,7 +194,7 @@ impl Application {
     fn load_model(display: &Display, path: impl AsRef<Path>) -> AnyResult<Model> {
         let obj_file = File::open(path.as_ref())?;
         let obj = WavefrontObj::from_reader(obj_file)?;
-        let group = &obj.groups()[0];
-        Model::from_group(display, group)
+
+        Model::from_obj(display, &obj)
     }
 }

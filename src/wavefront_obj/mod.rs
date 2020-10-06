@@ -2,10 +2,12 @@
 
 mod parser;
 
+use crate::AnyResult;
+use parser::Parser;
 use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{prelude::*, BufReader},
+    io::prelude::*,
     num::NonZeroUsize,
 };
 
@@ -43,31 +45,25 @@ impl StdError for Error {}
 /// Wavefront OBJ の内容を表す。
 #[derive(Debug, Clone)]
 pub struct WavefrontObj {
-    name: String,
-    groups: Vec<Group>,
-    materials: Vec<Material>,
+    objects: Box<[Object]>,
+    materials: Box<[Material]>,
 }
 
 #[allow(dead_code)]
 impl WavefrontObj {
-    /// このオブジェクトの名前を返す。
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
     /// このオブジェクトに含まれる全てのグループを返す。
-    pub fn groups(&self) -> &[Group] {
-        &self.groups
+    pub fn objects(&self) -> &[Object] {
+        &self.objects
     }
 
-    pub fn from_reader(reader: impl Read) -> Result<WavefrontObj, Box<dyn StdError + Send + Sync>> {
-        let (name, groups) = parser::parse_obj_file(BufReader::new(reader))?;
+    pub fn materials(&self) -> &[Material] {
+        &self.materials
+    }
 
-        Ok(WavefrontObj {
-            name,
-            groups,
-            materials: vec![],
-        })
+    pub fn from_reader(reader: impl Read) -> AnyResult<WavefrontObj> {
+        let mut parser = Parser::new();
+        parser.parse_obj(reader)?;
+        Ok(parser.into_obj())
     }
 }
 
@@ -77,26 +73,54 @@ pub struct FaceIndexPair(NonZeroUsize, Option<NonZeroUsize>, Option<NonZeroUsize
 
 /// Wavefront OBJ 内のオブジェクトを表す。
 #[derive(Debug, Clone)]
+pub struct Object {
+    /// 名前
+    name: Option<String>,
+
+    /// グループ
+    groups: Box<[Group]>,
+}
+
+#[allow(dead_code)]
+impl Object {
+    /// このオブジェクトの名前を返す。
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    ///このオブジェクトのグループを返す。
+    pub fn groups(&self) -> &[Group] {
+        &self.groups
+    }
+}
+
+/// Wavefront OBJ 内のグループを表す。
+#[derive(Debug, Clone)]
 pub struct Group {
     /// 名前
-    name: String,
+    name: Option<String>,
+
+    /// 割り当てられているマテリアル名
+    material_name: Option<String>,
 
     /// 頂点座標
-    vertices: Vec<Vec3>,
+    vertices: Box<[Vec3]>,
 
     /// 頂点テクスチャ座標
-    texture_uvs: Vec<Vec2>,
+    texture_uvs: Box<[Vec2]>,
 
     /// 頂点法線(正規)
-    normals: Vec<Vec3>,
+    normals: Box<[Vec3]>,
 
-    face_index_pairs: Vec<Box<[FaceIndexPair]>>,
+    /// 面の頂点ペアのリスト
+    face_index_pairs: Box<[Box<[FaceIndexPair]>]>,
 }
 
 #[allow(dead_code)]
 impl Group {
-    pub fn name(&self) -> &str {
-        &self.name
+    /// このグループの名前を返す。
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     /// このグループの頂点リストを返す。
