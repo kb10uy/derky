@@ -12,7 +12,7 @@ use crate::{
     wavefront_obj::WavefrontObj,
     AnyResult,
 };
-use std::{fs::File, path::Path, time::Duration};
+use std::{f32::consts::PI, fs::File, path::Path, time::Duration};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -102,7 +102,8 @@ impl Application {
         geometry_buffer: &mut MultiOutputFrameBuffer,
         uniforms: impl Uniforms,
     ) -> AnyResult<()> {
-        let model_matrix: [[f32; 4]; 4] = Mat4::identity().into();
+        let angle = self.elapsed_time.as_secs_f32() * PI;
+        let model_matrix: [[f32; 4]; 4] = Mat4::from_rotation_y(angle).into();
         let uniforms = UniformsSet::new(uniforms)
             .add(self.environment.get_unforms())
             .add(uniform! {
