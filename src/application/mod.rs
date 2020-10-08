@@ -9,10 +9,10 @@ use model::Model;
 
 use crate::{
     rendering::{load_program, UniformsSet},
-    wavefront_obj::WavefrontObj,
+    wavefront_obj::{WavefrontObj, Parser},
     AnyResult,
 };
-use std::{f32::consts::PI, fs::File, path::Path, time::Duration};
+use std::{f32::consts::PI, fs::File, path::{Path, PathBuf}, time::Duration};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -190,8 +190,18 @@ impl Application {
 
     /// モデルを読み込む。
     fn load_model(display: &Display, path: impl AsRef<Path>) -> AnyResult<Model> {
-        let obj_file = File::open(path.as_ref())?;
-        let obj = WavefrontObj::from_reader(obj_file)?;
+        let path = path.as_ref();
+        let directory = path.parent().ok_or("Invalid path")?;
+
+        let parser = Parser::new(|filename| {
+            let mut include_path = PathBuf::from(directory);
+            include_path.push(filename);
+            let file = File::open(include_path)?;
+            Ok(file)
+        });
+
+        let obj_file = File::open(path)?;
+        let obj = parser.parse(obj_file)?;
 
         Model::from_obj(display, &obj)
     }

@@ -3,7 +3,7 @@ mod rendering;
 mod wavefront_obj;
 
 use application::Application;
-use std::{error::Error, time::Instant};
+use std::{error::Error, time::{Instant, Duration}};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -99,7 +99,8 @@ fn main() -> AnyResult<()> {
         target.finish().expect("Failed to finish drawing display");
 
         // ウィンドウイベント
-        *control_flow = ControlFlow::Poll;
+        let next_frame = now + Duration::from_micros(16_666 / 2);
+        *control_flow = ControlFlow::WaitUntil(next_frame);
         match ev {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {

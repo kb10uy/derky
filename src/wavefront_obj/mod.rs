@@ -2,12 +2,11 @@
 
 mod parser;
 
-use crate::AnyResult;
-use parser::Parser;
+pub use parser::Parser;
 use std::{
+    collections::HashMap,
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
-    io::prelude::*,
     num::NonZeroUsize,
 };
 
@@ -24,6 +23,9 @@ pub enum Error {
 
     /// f で不正な指定がある
     InvalidIndex,
+
+    /// パス指定が存在しない
+    PathNotFound,
 }
 
 impl Display for Error {
@@ -36,6 +38,7 @@ impl Display for Error {
             ),
             Error::InvalidFaceVertex => write!(f, "Invalid face vertex definition"),
             Error::InvalidIndex => write!(f, "Invalid index definition"),
+            Error::PathNotFound => write!(f, "Path not found"),
         }
     }
 }
@@ -58,12 +61,6 @@ impl WavefrontObj {
 
     pub fn materials(&self) -> &[Material] {
         &self.materials
-    }
-
-    pub fn from_reader(reader: impl Read) -> AnyResult<WavefrontObj> {
-        let mut parser = Parser::new();
-        parser.parse_obj(reader)?;
-        Ok(parser.into_obj())
     }
 }
 
@@ -187,6 +184,78 @@ impl<'a> Iterator for FaceVertices<'a> {
     }
 }
 
+/// Wavefron OBJ の マテリアルの値を表す。
+#[derive(Debug, Clone, PartialEq)]
+pub enum MaterialProperty {
+    /// `Ni` などの小数値
+    Float(f32),
+
+    /// `illum` などの整数値
+    Integer(u32),
+
+    /// `Kd` などのVec3 値
+    Vector(Vec3),
+
+    /// `map_Kd` などのパス情報
+    Path(String),
+}
+
 /// .mtl ファイルで定義されるマテリアル情報を表す。
 #[derive(Debug, Clone)]
-pub struct Material;
+pub struct Material {
+    name: String,
+    properties: HashMap<String, MaterialProperty>,
+}
+
+#[allow(dead_code)]
+impl Material {
+    /// マテリアル名を返す。
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// `Ka` の値を返す。
+    pub fn ambient_color(&self) -> Option<Vec3> {
+        match self.properties.get("Ka") {
+            Some(MaterialProperty::Vector(v)) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// `Kd` の値を返す。
+    pub fn diffuse_color(&self) -> Option<Vec3> {
+        match self.properties.get("Kd") {
+            Some(MaterialProperty::Vector(v)) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// `Ns` の値を返す。
+    pub fn specular_intensity(&self) -> Option<f32> {
+        match self.properties.get("Ns") {
+            Some(MaterialProperty::Float(v)) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// `illum` の値を返す。
+    pub fn illumination(&self) -> Option<u32> {
+        match self.properties.get("illum") {
+            Some(MaterialProperty::Integer(v)) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// `map_Kd` の値を返す。
+    pub fn diffuse_map(&self) -> Option<&str> {
+        match self.properties.get("map_Kd") {
+            Some(MaterialProperty::Path(v)) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// マテリアルの値を取得する。
+    pub fn get(&self, key: &str) -> Option<&MaterialProperty> {
+        self.properties.get(key)
+    }
+}
