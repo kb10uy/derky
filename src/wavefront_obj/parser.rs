@@ -135,6 +135,7 @@ impl<F: Fn(&str) -> AnyResult<R>, R: Read> Parser<F> {
             self.process_obj_line(&mut obj_buffer, &mut mtl_buffer, keyword, &data)?;
         }
         obj_buffer.commit_object();
+        mtl_buffer.commit_material();
 
         Ok(WavefrontObj {
             objects: obj_buffer.complete_objects.into_boxed_slice(),

@@ -4,15 +4,19 @@ mod environment;
 mod material;
 mod model;
 
-use environment::Environment;
-use model::Model;
-
 use crate::{
     rendering::{load_program, UniformsSet},
-    wavefront_obj::{WavefrontObj, Parser},
+    wavefront_obj::Parser,
     AnyResult,
 };
-use std::{f32::consts::PI, fs::File, path::{Path, PathBuf}, time::Duration};
+use environment::Environment;
+use model::Model;
+use std::{
+    f32::consts::PI,
+    fs::File,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -23,6 +27,7 @@ use glium::{
     Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, IndexBuffer,
     LinearBlendingFactor, Program, Surface, VertexBuffer,
 };
+use log::info;
 use ultraviolet::{Mat4, Vec3};
 
 #[derive(Debug, Clone, Copy)]
@@ -202,6 +207,12 @@ impl Application {
 
         let obj_file = File::open(path)?;
         let obj = parser.parse(obj_file)?;
+
+        info!(
+            "Wavefront OBJ Summary: {} object(s), {} material(s)",
+            obj.objects().len(),
+            obj.materials().len()
+        );
 
         Model::from_obj(display, &obj)
     }
