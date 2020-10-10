@@ -3,7 +3,7 @@
 
 #version 450
 
-uniform mat4 mat_screen;
+uniform mat4 env_screen_matrix;
 
 in vec4 position;
 in vec2 uv;
@@ -12,5 +12,5 @@ smooth out vec2 v_uv;
 
 void main() {
     v_uv = uv;
-    gl_Position = mat_screen * position;
+    gl_Position = env_screen_matrix * position;
 }

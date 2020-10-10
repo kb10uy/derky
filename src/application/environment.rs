@@ -29,14 +29,13 @@ impl Environment {
     pub fn get_unforms(&self) -> impl Uniforms {
         let view: [[f32; 4]; 4] = Mat4::from_translation(-self.camera_position).into();
         let projection: [[f32; 4]; 4] = self.projection_matrix.into();
-        let directional: [f32; 3] = self.directional_light.into();
+        // let directional: [f32; 3] = self.directional_light.into();
         let camera: [f32; 3] = self.camera_position.into();
 
         uniform! {
-            mat_view: view,
-            mat_projection: projection,
-            lit_directional: directional,
-            cam_position: camera,
+            env_view_matrix: view,
+            env_projection_matrix: projection,
+            env_camera_position: camera,
         }
     }
 }

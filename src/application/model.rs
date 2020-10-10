@@ -55,8 +55,9 @@ impl Model {
         let materials = Model::convert_materials(facade, obj.materials(), base_path)?;
 
         for object in obj.objects() {
-            info!("Loading {:?}", object.name());
+            info!("Loading object {:?}", object.name());
             for group in object.groups() {
+                info!("Loading group {:?} , referencing material {:?}", group.name(), group.material_name());
                 let mut vertices = vec![];
                 let mut indices = vec![];
                 Model::convert_group(group, &mut vertices, &mut indices);
@@ -126,6 +127,7 @@ impl Model {
         let mut materials = HashMap::new();
 
         for original_material in original_materials {
+            info!("Loading material {}", original_material.name());
             let image = if let Some(path) = original_material.diffuse_map() {
                 let mut filename = PathBuf::from(base_path.as_ref());
                 filename.push(path);

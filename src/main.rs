@@ -3,7 +3,10 @@ mod rendering;
 mod wavefront_obj;
 
 use application::Application;
-use std::{error::Error, time::{Instant, Duration}};
+use std::{
+    error::Error,
+    time::{Duration, Instant},
+};
 
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -16,7 +19,7 @@ use glium::{
     },
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
     uniform,
-    uniforms::UniformsStorage,
+    uniforms::{EmptyUniforms, UniformsStorage},
     Display, Surface,
 };
 use log::info;
@@ -68,8 +71,9 @@ fn main() -> AnyResult<()> {
         app.tick(delta);
 
         // ジオメトリパス
+        let uniforms_generator = || EmptyUniforms;
         frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-        app.draw_geometry(&mut frame_buffer, UniformsStorage::new("__dummy", 0f32))
+        app.draw_geometry(&mut frame_buffer, uniforms_generator)
             .expect("Failed to process the geometry path");
 
         // ライティングパス
@@ -77,7 +81,7 @@ fn main() -> AnyResult<()> {
         app.draw_lighting(
             &mut lighting_buffer,
             uniform! {
-                mat_screen: screen_matrix,
+                env_screen_matrix: screen_matrix,
                 g_position: &buffer_refs.out_position,
                 g_normal: &buffer_refs.out_world_normal,
             },
@@ -90,7 +94,7 @@ fn main() -> AnyResult<()> {
         app.draw_composition(
             &mut target,
             uniform! {
-                mat_screen: screen_matrix,
+                env_screen_matrix: screen_matrix,
                 tex_unlit: &buffer_refs.out_albedo,
                 tex_lighting: &buffer_refs.lighting,
             },

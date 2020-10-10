@@ -66,7 +66,7 @@ impl ObjBuffer {
         if self.group_buffer.faces.len() > 0 {
             let group = Group {
                 name: self.group_buffer.name.clone(),
-                material_name: None,
+                material_name: self.group_buffer.material_name.clone(),
                 vertices: self.group_buffer.vertices.clone().into_boxed_slice(),
                 texture_uvs: self.group_buffer.texture_uvs.clone().into_boxed_slice(),
                 normals: self.group_buffer.vertex_normals.clone().into_boxed_slice(),

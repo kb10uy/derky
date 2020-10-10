@@ -10,6 +10,7 @@ use crate::{
     AnyResult,
 };
 use environment::Environment;
+use material::Material;
 use model::Model;
 use std::{
     f32::consts::PI,
@@ -71,7 +72,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
-        let model = Application::load_model(display, "objects/utah-teapot.obj")?;
+        let model = Application::load_model(display, "objects/Natsuki.obj")?;
 
         let program_geometry = load_program(display, "deferred_geometry")?;
         let program_lighting = load_program(display, "deferred_lighting")?;
@@ -102,18 +103,13 @@ impl Application {
     }
 
     /// ジオメトリパスの描画をする。
-    pub fn draw_geometry(
+    pub fn draw_geometry<UG: Fn() -> U, U: Uniforms>(
         &mut self,
         geometry_buffer: &mut MultiOutputFrameBuffer,
-        uniforms: impl Uniforms,
+        generate_uniforms: UG,
     ) -> AnyResult<()> {
         let angle = self.elapsed_time.as_secs_f32() * PI;
         let model_matrix: [[f32; 4]; 4] = Mat4::from_rotation_y(angle).into();
-        let uniforms = UniformsSet::new(uniforms)
-            .add(self.environment.get_unforms())
-            .add(uniform! {
-                mat_model: model_matrix,
-            });
 
         let params = DrawParameters {
             depth: Depth {
@@ -124,14 +120,21 @@ impl Application {
             ..Default::default()
         };
 
+        let program = &self.program_geometry;
         self.model.visit_groups(|vb, ib, material| {
-            geometry_buffer.draw(
-                vb,
-                ib,
-                &self.program_geometry,
-                &uniforms,
-                &params,
-            )?;
+            let albedo = match material {
+                Some(Material::Diffuse { albedo, .. }) => albedo,
+                _ => return Ok(()),
+            };
+
+            let uniforms = UniformsSet::new(generate_uniforms())
+                .add(self.environment.get_unforms())
+                .add(uniform! {
+                    model_matrix: model_matrix,
+                    material_albedo: albedo,
+                });
+
+            geometry_buffer.draw(vb, ib, program, &uniforms, &params)?;
             Ok(())
         })?;
 
@@ -150,8 +153,8 @@ impl Application {
         let uniforms = UniformsSet::new(uniforms)
             .add(self.environment.get_unforms())
             .add(uniform! {
-                lit_dir_direction: light_direction,
-                lit_dir_color: light_color,
+                light_directional_direction: light_direction,
+                light_directional_color: light_color,
             });
 
         let params = DrawParameters {

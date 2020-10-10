@@ -11,5 +11,7 @@ smooth in vec2 v_uv;
 out vec4 color;
 
 void main() {
-    color = vec4(texture(tex_lighting, v_uv).rgb, 1.0);
+    vec2 uv_inv = vec2(v_uv.x, 1.0 - v_uv.y);
+    vec3 out_color = texture(tex_unlit, uv_inv).rgb * texture(tex_lighting, v_uv).rgb;
+    color = vec4(out_color, 1.0);
 }
