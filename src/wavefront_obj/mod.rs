@@ -8,6 +8,7 @@ use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult},
     num::NonZeroUsize,
+    path::Path,
 };
 
 use ultraviolet::{Vec2, Vec3};
@@ -120,6 +121,11 @@ impl Group {
         self.name.as_deref()
     }
 
+    /// このグループの名前を返す。
+    pub fn material_name(&self) -> Option<&str> {
+        self.material_name.as_deref()
+    }
+
     /// このグループの頂点リストを返す。
     pub fn vertices(&self) -> &[Vec3] {
         &self.vertices
@@ -197,7 +203,7 @@ pub enum MaterialProperty {
     Vector(Vec3),
 
     /// `map_Kd` などのパス情報
-    Path(String),
+    Path(Box<Path>),
 }
 
 /// .mtl ファイルで定義されるマテリアル情報を表す。
@@ -247,7 +253,7 @@ impl Material {
     }
 
     /// `map_Kd` の値を返す。
-    pub fn diffuse_map(&self) -> Option<&str> {
+    pub fn diffuse_map(&self) -> Option<&Path> {
         match self.properties.get("map_Kd") {
             Some(MaterialProperty::Path(v)) => Some(v),
             _ => None,

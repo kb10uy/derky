@@ -10,6 +10,7 @@ use std::{
     error::Error,
     io::{prelude::*, BufReader},
     num::NonZeroUsize,
+    path::PathBuf,
     str::FromStr,
 };
 
@@ -246,10 +247,11 @@ fn process_mtl_line(mtl_buffer: &mut MtlBuffer, keyword: &str, data: &[&str]) ->
                 .insert(k.to_owned(), MaterialProperty::Float(value));
         }
         k if k.starts_with("map_") => {
-            let value = data.get(0).unwrap_or(&"").to_string();
-            mtl_buffer
-                .properties
-                .insert(k.to_owned(), MaterialProperty::Path(value));
+            let value = PathBuf::from_str(&data.get(0).unwrap_or(&"").replace("\\\\", "\\"))?;
+            mtl_buffer.properties.insert(
+                k.to_owned(),
+                MaterialProperty::Path(value.into_boxed_path()),
+            );
         }
         _ => {
             warn!("Unsupported MTL keyword: {}", keyword);

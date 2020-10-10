@@ -1,14 +1,25 @@
 //! 描画用モデルに関係するモジュール。
 
+use super::material::Material;
 use crate::{
-    wavefront_obj::{Group, Object, WavefrontObj},
+    wavefront_obj::{Group, Material as WavefrontMaterial, WavefrontObj},
     AnyResult,
 };
-use std::error::Error;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
-use glium::{backend::Facade, implement_vertex, index::PrimitiveType, IndexBuffer, VertexBuffer};
+use glium::{
+    backend::Facade,
+    implement_vertex,
+    index::PrimitiveType,
+    texture::{RawImage2d, Texture2d},
+    IndexBuffer, VertexBuffer,
+};
+use image::{Rgba, RgbaImage};
 use log::info;
-use ultraviolet::Vec3;
+use ultraviolet::{Vec3, Vec4};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,84 +30,73 @@ pub struct Vertex {
 }
 implement_vertex!(Vertex, position, normal, uv);
 
+#[derive(Debug)]
+struct ModelGroup {
+    vertex_buffer: VertexBuffer<Vertex>,
+    index_buffer: IndexBuffer<u32>,
+    material_name: String,
+}
+
 /// VBO/IBO 化したモデルの情報を表す。
 #[derive(Debug)]
 pub struct Model {
-    vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: IndexBuffer<u32>,
+    groups: Box<[ModelGroup]>,
+    materials: HashMap<String, Material>,
 }
 
 #[allow(dead_code)]
 impl Model {
-    pub fn from_obj(facade: &impl Facade, obj: &WavefrontObj) -> AnyResult<Model> {
-        let mut vertices = vec![];
-        let mut indices = vec![];
+    pub fn from_obj(
+        facade: &impl Facade,
+        obj: &WavefrontObj,
+        base_path: impl AsRef<Path>,
+    ) -> AnyResult<Model> {
+        let mut groups = Vec::new();
+        let materials = Model::convert_materials(facade, obj.materials(), base_path)?;
 
         for object in obj.objects() {
             info!("Loading {:?}", object.name());
             for group in object.groups() {
+                let mut vertices = vec![];
+                let mut indices = vec![];
                 Model::convert_group(group, &mut vertices, &mut indices);
+
+                let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
+                let index_buffer =
+                    IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
+                groups.push(ModelGroup {
+                    vertex_buffer,
+                    index_buffer,
+                    material_name: group.material_name().unwrap_or("").to_string(),
+                })
             }
         }
 
-        Model::from_buffers(facade, &vertices, &indices)
-    }
-
-    pub fn from_object(facade: &impl Facade, object: &Object) -> AnyResult<Model> {
-        let mut vertices = vec![];
-        let mut indices = vec![];
-
-        for group in object.groups() {
-            Model::convert_group(group, &mut vertices, &mut indices);
-        }
-
-        Model::from_buffers(facade, &vertices, &indices)
-    }
-
-    pub fn from_group(
-        facade: &impl Facade,
-        group: &Group,
-    ) -> Result<Model, Box<dyn Error + Send + Sync>> {
-        let mut vertices = vec![];
-        let mut indices = vec![];
-
-        Model::convert_group(group, &mut vertices, &mut indices);
-
-        Model::from_buffers(facade, &vertices, &indices)
-    }
-
-    /// VBO を返す。
-    pub fn vertex_buffer(&self) -> &VertexBuffer<Vertex> {
-        &self.vertex_buffer
-    }
-
-    /// IBO を返す。
-    pub fn index_buffer(&self) -> &IndexBuffer<u32> {
-        &self.index_buffer
-    }
-
-    fn from_buffers(
-        facade: &impl Facade,
-        vertices: &[Vertex],
-        indices: &[u32],
-    ) -> AnyResult<Model> {
-        let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
-        let index_buffer = IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
-
-        info!("Wavefront OBJ loaded; {} vertices", vertices.len());
-
         Ok(Model {
-            vertex_buffer,
-            index_buffer,
+            groups: groups.into_boxed_slice(),
+            materials,
         })
     }
 
+    /// 全てのグループを巡回する。
+    pub fn visit_groups(
+        &self,
+        mut visitor: impl FnMut(
+            &VertexBuffer<Vertex>,
+            &IndexBuffer<u32>,
+            Option<&Material>,
+        ) -> AnyResult<()>,
+    ) -> AnyResult<()> {
+        for group in &self.groups[..] {
+            let material = self.materials.get(&group.material_name);
+            visitor(&group.vertex_buffer, &group.index_buffer, material)?;
+        }
+
+        Ok(())
+    }
+
     /// 引数の vertices/indices に追加する。
-    fn convert_group(
-        group: &Group,
-        vertices: &mut Vec<Vertex>,
-        indices: &mut Vec<u32>,
-    ) {
+    fn convert_group(group: &Group, vertices: &mut Vec<Vertex>, indices: &mut Vec<u32>) {
         for face in group.faces() {
             let vertex_base = vertices.len();
             let original_vertices: Vec<_> = face.collect();
@@ -116,5 +116,36 @@ impl Model {
                 indices.push((vertex_base + i + 2) as u32);
             }
         }
+    }
+
+    fn convert_materials(
+        facade: &impl Facade,
+        original_materials: &[WavefrontMaterial],
+        base_path: impl AsRef<Path>,
+    ) -> AnyResult<HashMap<String, Material>> {
+        let mut materials = HashMap::new();
+
+        for original_material in original_materials {
+            let image = if let Some(path) = original_material.diffuse_map() {
+                let mut filename = PathBuf::from(base_path.as_ref());
+                filename.push(path);
+                image::open(filename)?.into_rgba()
+            } else {
+                let mut image = RgbaImage::new(1, 1);
+                image.put_pixel(0, 0, Rgba([255, 255, 255, 255]));
+                image
+            };
+            let dimensions = image.dimensions();
+            let raw_image = RawImage2d::from_raw_rgba(image.into_raw(), dimensions);
+            let texture = Texture2d::new(facade, raw_image)?;
+
+            let material = Material::Diffuse {
+                color: Vec4::new(1.0, 1.0, 1.0, 1.0),
+                albedo: texture,
+            };
+            materials.insert(original_material.name().to_string(), material);
+        }
+
+        Ok(materials)
     }
 }

@@ -71,7 +71,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
-        let model = Application::load_model(display, "objects/Natsuki.obj")?;
+        let model = Application::load_model(display, "objects/utah-teapot.obj")?;
 
         let program_geometry = load_program(display, "deferred_geometry")?;
         let program_lighting = load_program(display, "deferred_lighting")?;
@@ -124,13 +124,16 @@ impl Application {
             ..Default::default()
         };
 
-        geometry_buffer.draw(
-            self.model.vertex_buffer(),
-            self.model.index_buffer(),
-            &self.program_geometry,
-            &uniforms,
-            &params,
-        )?;
+        self.model.visit_groups(|vb, ib, material| {
+            geometry_buffer.draw(
+                vb,
+                ib,
+                &self.program_geometry,
+                &uniforms,
+                &params,
+            )?;
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -214,6 +217,6 @@ impl Application {
             obj.materials().len()
         );
 
-        Model::from_obj(display, &obj)
+        Model::from_obj(display, &obj, directory)
     }
 }

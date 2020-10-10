@@ -6,17 +6,17 @@ use ultraviolet::Vec4;
 /// マテリアル定義
 #[derive(Debug)]
 #[allow(dead_code)]
-pub enum Material<'t> {
+pub enum Material {
     /// Lambert モデル
-    Diffuse { albedo: &'t Texture2d, color: Vec4 },
+    Diffuse { albedo: Texture2d, color: Vec4 },
 
     /// Phong モデル
     Specular {
-        albedo: &'t Texture2d,
+        albedo: Texture2d,
         color: Vec4,
         intensity: f32,
     },
 
     /// Unlit (単純なテクスチャマッピング)
-    Unlit { albedo: &'t Texture2d },
+    Unlit { albedo: Texture2d },
 }
