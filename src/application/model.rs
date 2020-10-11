@@ -7,6 +7,8 @@ use crate::{
 };
 use std::{
     collections::HashMap,
+    fs::File,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -17,7 +19,7 @@ use glium::{
     texture::{RawImage2d, Texture2d},
     IndexBuffer, VertexBuffer,
 };
-use image::{Rgba, RgbaImage};
+use image::{io::Reader as ImageReader, Rgba, RgbaImage};
 use log::info;
 use ultraviolet::{Vec3, Vec4};
 
@@ -57,7 +59,11 @@ impl Model {
         for object in obj.objects() {
             info!("Loading object {:?}", object.name());
             for group in object.groups() {
-                info!("Loading group {:?} , referencing material {:?}", group.name(), group.material_name());
+                info!(
+                    "Loading group {:?} , referencing material {:?}",
+                    group.name(),
+                    group.material_name()
+                );
                 let mut vertices = vec![];
                 let mut indices = vec![];
                 Model::convert_group(group, &mut vertices, &mut indices);
@@ -131,12 +137,18 @@ impl Model {
             let image = if let Some(path) = original_material.diffuse_map() {
                 let mut filename = PathBuf::from(base_path.as_ref());
                 filename.push(path);
-                image::open(filename)?.into_rgba()
+
+                info!("Loading texture {:?}", filename);
+                let file = File::open(filename)?;
+                let reader = ImageReader::new(BufReader::new(file)).with_guessed_format()?;
+                reader.decode()?.into_rgba()
             } else {
+                info!("Creating dummy image");
                 let mut image = RgbaImage::new(1, 1);
                 image.put_pixel(0, 0, Rgba([255, 255, 255, 255]));
                 image
             };
+
             let dimensions = image.dimensions();
             let raw_image = RawImage2d::from_raw_rgba(image.into_raw(), dimensions);
             let texture = Texture2d::new(facade, raw_image)?;

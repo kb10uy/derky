@@ -19,7 +19,7 @@ use glium::{
     },
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
     uniform,
-    uniforms::{EmptyUniforms, UniformsStorage},
+    uniforms::EmptyUniforms,
     Display, Surface,
 };
 use log::info;
