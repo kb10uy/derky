@@ -1,102 +1,15 @@
-//! .obj ファイル、 .mtl ファイルのパーサーの関数群
-
-use super::{
-    Error as ObjError, FaceIndexPair, Group, Material, MaterialProperty, Object, WavefrontObj,
-};
+use super::{Error as ObjError, FaceIndexPair, Group, Object, WavefrontObj};
 use crate::AnyResult;
 
 use std::{
-    collections::HashMap,
     error::Error,
     io::{prelude::*, BufReader},
     num::NonZeroUsize,
-    path::PathBuf,
     str::FromStr,
 };
 
 use log::warn;
 use ultraviolet::{Vec2, Vec3};
-
-#[derive(Debug, Default)]
-struct GroupBuffer {
-    name: Option<String>,
-    material_name: Option<String>,
-    vertices: Vec<Vec3>,
-    vertex_normals: Vec<Vec3>,
-    texture_uvs: Vec<Vec2>,
-    faces: Vec<Box<[FaceIndexPair]>>,
-}
-
-#[derive(Debug, Default)]
-struct ObjectBuffer {
-    name: Option<String>,
-    groups: Vec<Group>,
-}
-
-#[derive(Debug, Default)]
-struct ObjBuffer {
-    index_offsets: (usize, usize, usize),
-    object_buffer: ObjectBuffer,
-    group_buffer: GroupBuffer,
-    complete_objects: Vec<Object>,
-    complete_groups: Vec<Group>,
-}
-
-impl ObjBuffer {
-    fn commit_object(&mut self) {
-        self.commit_group();
-        if self.complete_groups.len() > 0 {
-            let object = Object {
-                name: self.object_buffer.name.clone(),
-                groups: self.complete_groups.clone().into_boxed_slice(),
-            };
-            self.complete_objects.push(object);
-            self.complete_groups = vec![];
-        }
-
-        self.object_buffer = Default::default();
-    }
-
-    fn commit_group(&mut self) {
-        self.index_offsets = (
-            self.index_offsets.0 + self.group_buffer.vertices.len(),
-            self.index_offsets.1 + self.group_buffer.texture_uvs.len(),
-            self.index_offsets.2 + self.group_buffer.vertex_normals.len(),
-        );
-        if self.group_buffer.faces.len() > 0 {
-            let group = Group {
-                name: self.group_buffer.name.clone(),
-                material_name: self.group_buffer.material_name.clone(),
-                vertices: self.group_buffer.vertices.clone().into_boxed_slice(),
-                texture_uvs: self.group_buffer.texture_uvs.clone().into_boxed_slice(),
-                normals: self.group_buffer.vertex_normals.clone().into_boxed_slice(),
-                face_index_pairs: self.group_buffer.faces.clone().into_boxed_slice(),
-            };
-            self.complete_groups.push(group);
-        }
-        self.group_buffer = Default::default();
-    }
-}
-
-#[derive(Debug, Default)]
-struct MtlBuffer {
-    name: String,
-    properties: HashMap<String, MaterialProperty>,
-    complete_materials: Vec<Material>,
-}
-
-impl MtlBuffer {
-    fn commit_material(&mut self) {
-        if self.properties.len() > 0 {
-            let group = Material {
-                name: self.name.clone(),
-                properties: self.properties.clone(),
-            };
-            self.complete_materials.push(group);
-        }
-        self.properties.clear();
-    }
-}
 
 /// .obj ファイル、 .mtl ファイルのパーサー。
 #[derive(Debug, Default)]
@@ -191,73 +104,6 @@ impl<F: Fn(&str) -> AnyResult<R>, R: Read> Parser<F> {
         }
         Ok(())
     }
-}
-
-/// .mtl ファイルをパースする。
-fn parse_mtl(mtl_buffer: &mut MtlBuffer, reader: impl Read) -> AnyResult<()> {
-    let mut reader = BufReader::new(reader);
-
-    let mut line_buffer = String::with_capacity(1024);
-    loop {
-        line_buffer.clear();
-        let read_size = reader.read_line(&mut line_buffer)?;
-        if read_size == 0 {
-            break;
-        }
-
-        let trimmed = line_buffer.trim();
-        if trimmed == "" || trimmed.starts_with('#') {
-            continue;
-        }
-
-        let mut elements = line_buffer.trim().split_whitespace();
-        let keyword = elements
-            .next()
-            .expect("Each line should have at least one element");
-        let data: Vec<&str> = elements.collect();
-
-        process_mtl_line(mtl_buffer, keyword, &data)?;
-    }
-
-    Ok(())
-}
-
-fn process_mtl_line(mtl_buffer: &mut MtlBuffer, keyword: &str, data: &[&str]) -> AnyResult<()> {
-    match keyword {
-        "newmtl" => {
-            mtl_buffer.commit_material();
-            mtl_buffer.name = data.get(0).unwrap_or(&"").to_string();
-        }
-        "illum" => {
-            let value = take_single(data)?;
-            mtl_buffer
-                .properties
-                .insert("illum".to_owned(), MaterialProperty::Integer(value));
-        }
-        k if k.starts_with("K") => {
-            let value = take_vec3(data)?;
-            mtl_buffer
-                .properties
-                .insert(k.to_owned(), MaterialProperty::Vector(value));
-        }
-        k if k.starts_with("N") => {
-            let value = take_single(data)?;
-            mtl_buffer
-                .properties
-                .insert(k.to_owned(), MaterialProperty::Float(value));
-        }
-        k if k.starts_with("map_") => {
-            let value = PathBuf::from_str(&data.get(0).unwrap_or(&"").replace("\\\\", "\\"))?;
-            mtl_buffer.properties.insert(
-                k.to_owned(),
-                MaterialProperty::Path(value.into_boxed_path()),
-            );
-        }
-        _ => {
-            warn!("Unsupported MTL keyword: {}", keyword);
-        }
-    }
-    Ok(())
 }
 
 /// f 要素をパースする。

@@ -57,12 +57,14 @@ fn main() -> AnyResult<()> {
     )?;
     let mut lighting_buffer =
         SimpleFrameBuffer::with_depth_buffer(&display, &buffer_refs.lighting, &buffer_refs.depth)?;
+    /*
     let mut atomic_buffer = Buffer::<[u32]>::empty_array(
         &display,
         BufferType::AtomicCounterBuffer,
         8,
         BufferMode::Default,
     )?;
+    */
 
     info!("Starting event loop");
     let mut last_at = Instant::now();
@@ -74,7 +76,7 @@ fn main() -> AnyResult<()> {
         let delta = now - last_at;
         last_at = now;
 
-        atomic_buffer.write(&[0u32; 8]);
+        // atomic_buffer.write(&[0u32; 8]);
 
         // tick 処理
         app.tick(delta);
@@ -82,7 +84,7 @@ fn main() -> AnyResult<()> {
         // ジオメトリパス
         let uniforms_generator = || {
             uniform! {
-                env_atomic_counters: &atomic_buffer,
+                // env_atomic_counters: &atomic_buffer,
             }
         };
         frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
@@ -90,10 +92,12 @@ fn main() -> AnyResult<()> {
             .expect("Failed to process the geometry path");
 
         // 統計
+        /*
         {
             let mapped = atomic_buffer.read().unwrap();
             info!("Buffer: {:?}", mapped);
         }
+        */
 
         // ライティングパス
         lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);

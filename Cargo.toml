@@ -1,22 +1,5 @@
-[package]
-name = "derky"
-version = "0.1.0"
-authors = ["kb10uy <kb10uy@kb10uy.org>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies.log]
-version = "0.4"
-
-[dependencies.pretty_env_logger]
-version = "0.4"
-
-[dependencies.glium]
-version = "0.28"
-
-[dependencies.ultraviolet]
-version = "0.7"
-
-[dependencies.image]
-version = "0.23"
+[workspace]
+members = [
+  "derky",
+  "weavy_crab",
+]
