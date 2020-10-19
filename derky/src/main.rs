@@ -1,6 +1,5 @@
 mod application;
 mod rendering;
-mod wavefront_obj;
 
 use application::Application;
 use std::{
@@ -9,7 +8,6 @@ use std::{
 };
 
 use glium::{
-    buffer::{Buffer, BufferMode, BufferType},
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     glutin::{
         dpi::PhysicalSize,
@@ -20,7 +18,6 @@ use glium::{
     },
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
     uniform,
-    uniforms::EmptyUniforms,
     Display, Surface,
 };
 use log::info;

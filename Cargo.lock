@@ -391,6 +391,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "ultraviolet",
+ "weavy_crab",
 ]
 
 [[package]]

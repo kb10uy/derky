@@ -70,7 +70,7 @@ enum MtlCommand {
 
 /// Represents the parser of OBJ/MTL.
 pub struct Parser<C, R> {
-    include_function: Box<dyn FnMut(&Path, &C) -> R>,
+    include_function: Box<dyn FnMut(&Path, &C) -> Result<R>>,
 }
 
 impl<C, R: Read> Parser<C, R> {
@@ -81,7 +81,7 @@ impl<C, R: Read> Parser<C, R> {
     ///     - When detects `mtllib` command, it tries to resolve the path of
     ///       MTL file. The parser calls this resolver with detected path and context object,
     ///       so you can return any `Read` instance or error.
-    pub fn new(include_function: impl FnMut(&Path, &C) -> R + 'static) -> Parser<C, R> {
+    pub fn new(include_function: impl FnMut(&Path, &C) -> Result<R> + 'static) -> Parser<C, R> {
         Parser {
             include_function: Box::new(include_function),
         }
@@ -173,7 +173,7 @@ impl<C, R: Read> Parser<C, R> {
             match command {
                 // mtllib
                 ObjCommand::MaterialLibrary(path) => {
-                    let mtl_reader = (self.include_function)(&path, &context);
+                    let mtl_reader = (self.include_function)(&path, &context)?;
                     materials = self.parse_mtl(mtl_reader)?;
                 }
 

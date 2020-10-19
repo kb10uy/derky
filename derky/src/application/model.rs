@@ -1,10 +1,7 @@
 //! 描画用モデルに関係するモジュール。
 
 use super::material::Material;
-use crate::{
-    wavefront_obj::{Group, Material as WavefrontMaterial, WavefrontObj},
-    AnyResult,
-};
+use crate::AnyResult;
 use std::{
     collections::HashMap,
     fs::File,
@@ -22,6 +19,7 @@ use glium::{
 use image::{io::Reader as ImageReader, Rgba, RgbaImage};
 use log::info;
 use ultraviolet::{Vec3, Vec4};
+use weavy_crab::{Group, Material as WavefrontMaterial, WavefrontObj};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]

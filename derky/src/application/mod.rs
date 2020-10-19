@@ -6,7 +6,6 @@ mod model;
 
 use crate::{
     rendering::{load_program, UniformsSet},
-    wavefront_obj::Parser,
     AnyResult,
 };
 use environment::Environment;
@@ -30,6 +29,7 @@ use glium::{
 };
 use log::info;
 use ultraviolet::{Mat4, Vec3};
+use weavy_crab::Parser;
 
 #[derive(Debug, Clone, Copy)]
 struct CompositionVertex {
@@ -202,17 +202,17 @@ impl Application {
     /// モデルを読み込む。
     fn load_model(display: &Display, path: impl AsRef<Path>) -> AnyResult<Model> {
         let path = path.as_ref();
-        let directory = path.parent().ok_or("Invalid path")?;
+        let directory = PathBuf::from(path.parent().ok_or("Invalid path")?);
 
-        let parser = Parser::new(|filename| {
-            let mut include_path = PathBuf::from(directory);
+        let parser = Parser::new(|filename, _| {
+            let mut include_path = directory.clone();
             include_path.push(filename);
             let file = File::open(include_path)?;
             Ok(file)
         });
 
         let obj_file = File::open(path)?;
-        let obj = parser.parse(obj_file)?;
+        let obj = parser.parse(obj_file, ())?;
 
         info!(
             "Wavefront OBJ Summary: {} object(s), {} material(s)",
