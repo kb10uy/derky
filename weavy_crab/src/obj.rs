@@ -7,8 +7,8 @@ pub struct FaceIndexPair(pub usize, pub Option<usize>, pub Option<usize>);
 /// Represents an object in OBJ file.
 #[derive(Debug, Clone)]
 pub struct Object {
-    name: Option<Box<str>>,
-    groups: Box<[Group]>,
+    pub(crate) name: Option<Box<str>>,
+    pub(crate) groups: Box<[Group]>,
 }
 
 impl Object {
@@ -31,11 +31,11 @@ impl Object {
 /// Represents a group of object.
 #[derive(Debug, Clone)]
 pub struct Group {
-    name: Option<Box<str>>,
-    vertices: Box<[Vec3]>,
-    texture_uvs: Box<[Vec2]>,
-    normals: Box<[Vec3]>,
-    face_index_pairs: Box<[Box<[FaceIndexPair]>]>,
+    pub(crate) name: Option<Box<str>>,
+    pub(crate) vertices: Box<[Vec3]>,
+    pub(crate) texture_uvs: Box<[Vec2]>,
+    pub(crate) normals: Box<[Vec3]>,
+    pub(crate) face_index_pairs: Box<[Box<[FaceIndexPair]>]>,
 }
 
 impl Group {
