@@ -15,9 +15,10 @@ use log::warn;
 use ultraviolet::{Vec2, Vec3};
 
 /// Represents the abstract data of a line in OBJ file.
+#[derive(Debug, Clone, PartialEq)]
 enum ObjCommand {
     /// `mtllib`
-    MaterialLibrary(Box<str>),
+    MaterialLibrary(Box<Path>),
 
     /// `usemtl`
     UseMaterial(Box<str>),
@@ -44,6 +45,8 @@ enum ObjCommand {
     Unknown(Box<str>, Box<[Box<str>]>),
 }
 
+/// Represents the abstract data of a line in MTL file.
+#[derive(Debug, Clone, PartialEq)]
 enum MtlCommand {
     /// `newmtl`
     NewMaterial(Box<str>),
@@ -65,16 +68,11 @@ enum MtlCommand {
 }
 
 /// Represents the parser of OBJ/MTL.
-#[derive(Debug, Default)]
-pub struct Parser<F> {
-    include_function: F,
+pub struct Parser<C, R> {
+    include_function: Box<dyn FnMut(&Path, &C) -> R>,
 }
 
-impl<F, R> Parser<F>
-where
-    F: Fn(&str) -> Result<R>,
-    R: Read,
-{
+impl<C, R: Read> Parser<C, R> {
     /// Creates an instance of `Parser`.
     /// # Parameters
     /// * `include_function`
@@ -82,27 +80,30 @@ where
     ///     - When detects `mtllib` command, it tries to resolve the path of
     ///       MTL file. The parser calls this resolver with detected path and context object,
     ///       so you can return any `Read` instance or error.
-    pub fn new(include_function: F) -> Parser<F> {
-        Parser { include_function }
+    pub fn new(include_function: impl FnMut(&Path, &C) -> R + 'static) -> Parser<C, R> {
+        Parser {
+            include_function: Box::new(include_function),
+        }
     }
 
     /// Parses the OBJ file.
-    pub fn parse(&self, reader: impl Read) -> Result<WavefrontObj> {
+    pub fn parse(&mut self, reader: impl Read, context: C) -> Result<WavefrontObj> {
         let mut reader = BufReader::new(reader);
 
         let mut line_buffer = String::with_capacity(1024);
-        let mut obj_buffer = ObjBuffer::default();
-        // let mut mtl_buffer = MtlBuffer::default();
-        loop {
-            line_buffer.clear();
-            let read_size = reader.read_line(&mut line_buffer)?;
-            if read_size == 0 {
-                break;
-            }
+        self.parse_impl(context, move || {
+            loop {
+                line_buffer.clear();
+                let read_size = reader.read_line(&mut line_buffer)?;
+                if read_size == 0 {
+                    return Ok(None);
+                }
 
-            let trimmed = line_buffer.trim();
-            if trimmed == "" || trimmed.starts_with('#') {
-                continue;
+                let trimmed = line_buffer.trim();
+                if trimmed == "" || trimmed.starts_with('#') {
+                    continue;
+                }
+                break;
             }
 
             let mut elements = line_buffer.trim().split_whitespace();
@@ -110,19 +111,35 @@ where
                 .next()
                 .expect("Each line should have at least one element");
             let data: Vec<&str> = elements.collect();
+            let command = parse_obj_line(keyword, &data)?;
 
-            // self.process_obj_line(&mut obj_buffer, &mut mtl_buffer, keyword, &data)?;
-        }
-        // obj_buffer.commit_object();
-        // mtl_buffer.commit_material();
-
-        todo!()
-        /*
-        Ok(WavefrontObj {
-            objects: obj_buffer.complete_objects.into_boxed_slice(),
-            materials: mtl_buffer.complete_materials.into_boxed_slice(),
+            Ok(Some(command))
         })
-        */
+    }
+
+    fn parse_impl<'a>(
+        &mut self,
+        context: C,
+        mut fetch_line: impl FnMut() -> Result<Option<ObjCommand>>,
+    ) -> Result<WavefrontObj> {
+        let mut materials = Default::default();
+
+        while let Some(command) = fetch_line()? {
+            match command {
+                ObjCommand::MaterialLibrary(path) => {
+                    let mtl_reader = (self.include_function)(&path, &context);
+                    materials = parse_mtl(mtl_reader)?;
+                }
+                _ => {
+                    warn!("Unprocessable command: {:?}", command);
+                }
+            }
+        }
+
+        Ok(WavefrontObj {
+            materials,
+            objects: todo!(),
+        })
     }
 }
 
@@ -373,11 +390,9 @@ fn parse_mtl(reader: impl Read) -> Result<Box<[Material]>> {
 fn parse_obj_line(keyword: &str, data: &[&str]) -> Result<ObjCommand> {
     let value = match keyword {
         "mtllib" => {
-            let filename = data.get(0).ok_or(Error::NotEnoughData {
-                expected: 1,
-                found: 0,
-            })?;
-            ObjCommand::MaterialLibrary(filename.to_string().into_boxed_str())
+            let value = data.get(0).unwrap_or(&"").replace("\\\\", "\\");
+            let filename = PathBuf::from_str(&value).map_err(|_| Error::PathNotFound(value))?;
+            ObjCommand::MaterialLibrary(filename.into_boxed_path())
         }
         "usemtl" => {
             let material = data.get(0).ok_or(Error::NotEnoughData {
