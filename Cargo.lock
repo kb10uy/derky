@@ -1496,6 +1496,7 @@ dependencies = [
 name = "weavy_crab"
 version = "0.1.0"
 dependencies = [
+ "log",
  "ultraviolet",
 ]
 
