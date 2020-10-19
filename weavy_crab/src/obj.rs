@@ -35,7 +35,7 @@ pub struct Group {
     pub(crate) vertices: Box<[Vec3]>,
     pub(crate) texture_uvs: Box<[Vec2]>,
     pub(crate) normals: Box<[Vec3]>,
-    pub(crate) face_index_pairs: Box<[Box<[FaceIndexPair]>]>,
+    pub(crate) face_index_pairs: Box<[(Box<[FaceIndexPair]>, Option<usize>)]>,
 }
 
 impl Group {
@@ -61,29 +61,41 @@ impl Group {
 
     /// The slice of face index pairs.
     /// Each element corresponds to face, and its elements are face index pairs.
-    pub fn face_index_pairs(&self) -> &[Box<[FaceIndexPair]>] {
+    pub fn face_index_pairs(&self) -> &[(Box<[FaceIndexPair]>, Option<usize>)] {
         &self.face_index_pairs
     }
 
     /// Iterates all faces in this group.
     pub fn faces(&self) -> GroupFaces {
-        GroupFaces(self, 0)
+        GroupFaces {
+            source_group: self,
+            current_index: 0,
+        }
     }
 }
 
 /// The iterator adaptor for faces in `Group`.
 /// It returns another iterator which iterates vertices in each face.
 #[derive(Debug)]
-pub struct GroupFaces<'a>(&'a Group, usize);
+pub struct GroupFaces<'a> {
+    source_group: &'a Group,
+    current_index: usize,
+}
 
 impl<'a> Iterator for GroupFaces<'a> {
-    type Item = FaceVertices<'a>;
+    type Item = (FaceVertices<'a>, Option<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.1 < self.0.face_index_pairs.len() {
-            let result = FaceVertices(self.0, &self.0.face_index_pairs[self.1], 0);
-            self.1 += 1;
-            Some(result)
+        if self.current_index < self.source_group.face_index_pairs.len() {
+            let (vertices, material) = &self.source_group.face_index_pairs[self.current_index];
+
+            let result = FaceVertices {
+                source_group: self.source_group,
+                source_pairs: vertices,
+                current_index: 0,
+            };
+            self.current_index += 1;
+            Some((result, *material))
         } else {
             None
         }
@@ -92,20 +104,24 @@ impl<'a> Iterator for GroupFaces<'a> {
 
 /// The iterator adapter for vertices in each face.
 #[derive(Debug)]
-pub struct FaceVertices<'a>(&'a Group, &'a [FaceIndexPair], usize);
+pub struct FaceVertices<'a> {
+    source_group: &'a Group,
+    source_pairs: &'a [FaceIndexPair],
+    current_index: usize,
+}
 
 impl<'a> Iterator for FaceVertices<'a> {
     type Item = (Vec3, Option<Vec2>, Option<Vec3>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.2 < self.1.len() {
-            let index_pair = &self.1[self.2];
+        if self.current_index < self.source_pairs.len() {
+            let index_pair = &self.source_pairs[self.current_index];
             let result = (
-                self.0.vertices[index_pair.0],
-                index_pair.1.map(|i| self.0.texture_uvs[i]),
-                index_pair.2.map(|i| self.0.normals[i]),
+                self.source_group.vertices[index_pair.0],
+                index_pair.1.map(|i| self.source_group.texture_uvs[i]),
+                index_pair.2.map(|i| self.source_group.normals[i]),
             );
-            self.2 += 1;
+            self.current_index += 1;
             Some(result)
         } else {
             None

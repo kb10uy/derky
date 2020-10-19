@@ -125,6 +125,7 @@ impl<C, R: Read> Parser<C, R> {
         mut fetch_line: impl FnMut() -> Result<Option<ObjCommand>>,
     ) -> Result<WavefrontObj> {
         let mut materials = Default::default();
+        let mut current_material = None;
         let mut objects = vec![];
         let mut object_name = Default::default();
         let mut groups = vec![];
@@ -212,12 +213,12 @@ impl<C, R: Read> Parser<C, R> {
                         let adjusted_n = raw_n.map(|i| i - no);
                         adjusted_face.push(FaceIndexPair(adjusted_v, adjusted_t, adjusted_n))
                     }
-                    faces.push(adjusted_face.into_boxed_slice());
+                    faces.push((adjusted_face.into_boxed_slice(), current_material));
                 }
 
                 // usemtl
                 ObjCommand::UseMaterial(material_name) => {
-                    let index = materials
+                    current_material = materials
                         .iter()
                         .position(|m| m.name() == &material_name[..]);
                 }
