@@ -3,7 +3,6 @@
 use super::material::Material;
 use crate::AnyResult;
 use std::{
-    collections::HashMap,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -17,9 +16,10 @@ use glium::{
     IndexBuffer, VertexBuffer,
 };
 use image::{io::Reader as ImageReader, Rgba, RgbaImage};
+use itertools::Itertools;
 use log::info;
 use ultraviolet::{Vec3, Vec4};
-use weavy_crab::{Group, Material as WavefrontMaterial, WavefrontObj};
+use weavy_crab::{Material as WavefrontMaterial, WavefrontObj};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,14 +34,13 @@ implement_vertex!(Vertex, position, normal, uv);
 struct ModelGroup {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer<u32>,
-    material_name: String,
 }
 
 /// VBO/IBO 化したモデルの情報を表す。
 #[derive(Debug)]
 pub struct Model {
-    groups: Box<[ModelGroup]>,
-    materials: HashMap<String, Material>,
+    face_groups: Box<[(VertexBuffer<Vertex>, IndexBuffer<u32>, Option<usize>)]>,
+    materials: Box<[Material]>,
 }
 
 #[allow(dead_code)]
@@ -51,36 +50,51 @@ impl Model {
         obj: &WavefrontObj,
         base_path: impl AsRef<Path>,
     ) -> AnyResult<Model> {
-        let mut groups = Vec::new();
+        let mut face_groups = vec![];
         let materials = Model::convert_materials(facade, obj.materials(), base_path)?;
 
-        for object in obj.objects() {
-            info!("Loading object {:?}", object.name());
-            for group in object.groups() {
-                info!(
-                    "Loading group {:?} , referencing material {:?}",
-                    group.name(),
-                    group.material_name()
-                );
-                let mut vertices = vec![];
-                let mut indices = vec![];
-                Model::convert_group(group, &mut vertices, &mut indices);
-
-                let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
-                let index_buffer =
-                    IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
-                groups.push(ModelGroup {
-                    vertex_buffer,
-                    index_buffer,
-                    material_name: group.material_name().unwrap_or("").to_string(),
-                })
+        let mut faces: Vec<_> = obj
+            .objects()
+            .iter()
+            .flat_map(|o| o.groups().iter().flat_map(|g| g.faces()))
+            .collect();
+        faces.sort_by_key(|f| f.1);
+        let groups = faces.into_iter().group_by(|f| f.1);
+        for (material, faces) in groups.into_iter() {
+            let mut vertices = vec![];
+            let mut indices = vec![];
+            for (face, _) in faces {
+                let vertex_base = vertices.len();
+                let original_vertices: Vec<_> = face.collect();
+                for original_vertice in &original_vertices {
+                    vertices.push(Vertex {
+                        position: original_vertice.0.into(),
+                        normal: original_vertice
+                            .2
+                            .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
+                            .into(),
+                        uv: original_vertice.1.unwrap_or_default().into(),
+                    });
+                }
+                for i in 0..(original_vertices.len() - 2) {
+                    indices.push(vertex_base as u32);
+                    indices.push((vertex_base + i + 1) as u32);
+                    indices.push((vertex_base + i + 2) as u32);
+                }
             }
+            let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
+            let index_buffer = IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
+            face_groups.push((vertex_buffer, index_buffer, material));
         }
 
         Ok(Model {
-            groups: groups.into_boxed_slice(),
+            face_groups: face_groups.into_boxed_slice(),
             materials,
         })
+    }
+
+    pub fn materials(&self) -> &[Material] {
+        &self.materials
     }
 
     /// 全てのグループを巡回する。
@@ -92,43 +106,20 @@ impl Model {
             Option<&Material>,
         ) -> AnyResult<()>,
     ) -> AnyResult<()> {
-        for group in &self.groups[..] {
-            let material = self.materials.get(&group.material_name);
-            visitor(&group.vertex_buffer, &group.index_buffer, material)?;
+        for (vb, ib, mi) in &self.face_groups[..] {
+            let material = mi.map(|i| self.materials.get(i)).flatten();
+            visitor(vb, ib, material)?;
         }
 
         Ok(())
-    }
-
-    /// 引数の vertices/indices に追加する。
-    fn convert_group(group: &Group, vertices: &mut Vec<Vertex>, indices: &mut Vec<u32>) {
-        for face in group.faces() {
-            let vertex_base = vertices.len();
-            let original_vertices: Vec<_> = face.collect();
-            for original_vertice in &original_vertices {
-                vertices.push(Vertex {
-                    position: original_vertice.0.into(),
-                    normal: original_vertice
-                        .2
-                        .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
-                        .into(),
-                    uv: original_vertice.1.unwrap_or_default().into(),
-                });
-            }
-            for i in 0..(original_vertices.len() - 2) {
-                indices.push(vertex_base as u32);
-                indices.push((vertex_base + i + 1) as u32);
-                indices.push((vertex_base + i + 2) as u32);
-            }
-        }
     }
 
     fn convert_materials(
         facade: &impl Facade,
         original_materials: &[WavefrontMaterial],
         base_path: impl AsRef<Path>,
-    ) -> AnyResult<HashMap<String, Material>> {
-        let mut materials = HashMap::new();
+    ) -> AnyResult<Box<[Material]>> {
+        let mut materials = vec![];
 
         for original_material in original_materials {
             info!("Loading material {}", original_material.name());
@@ -155,9 +146,9 @@ impl Model {
                 color: Vec4::new(1.0, 1.0, 1.0, 1.0),
                 albedo: texture,
             };
-            materials.insert(original_material.name().to_string(), material);
+            materials.push(material);
         }
 
-        Ok(materials)
+        Ok(materials.into_boxed_slice())
     }
 }

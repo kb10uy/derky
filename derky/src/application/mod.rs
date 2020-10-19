@@ -204,8 +204,9 @@ impl Application {
         let path = path.as_ref();
         let directory = PathBuf::from(path.parent().ok_or("Invalid path")?);
 
-        let parser = Parser::new(|filename, _| {
-            let mut include_path = directory.clone();
+        let include_base = directory.clone();
+        let mut parser = Parser::new(move |filename, _| {
+            let mut include_path = include_base.clone();
             include_path.push(filename);
             let file = File::open(include_path)?;
             Ok(file)
