@@ -1,14 +1,68 @@
-use crate::{Error as ObjError, Result, WavefrontObj};
+use crate::{
+    mtl::{Material, MaterialProperty},
+    obj::{FaceIndexPair, Group, Object},
+    Error, Result, WavefrontObj,
+};
 
 use std::{
-    error::Error,
+    collections::HashMap,
     io::{prelude::*, BufReader},
-    num::NonZeroUsize,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
 use log::warn;
 use ultraviolet::{Vec2, Vec3};
+
+/// Represents the abstract data of a line in OBJ file.
+enum ObjCommand {
+    /// `mtllib`
+    MaterialLibrary(Box<str>),
+
+    /// `usemtl`
+    UseMaterial(Box<str>),
+
+    /// `o`
+    Object(Option<Box<str>>),
+
+    /// `g`
+    Group(Option<Box<str>>),
+
+    /// `v`
+    Vertex(Vec3),
+
+    /// `vt`
+    VertexUv(Vec2),
+
+    /// `vn`
+    VertexNormal(Vec3),
+
+    /// `f`
+    Face(Box<[FaceIndexPair]>),
+
+    /// Any other unknown keyword
+    Unknown(Box<str>, Box<[Box<str>]>),
+}
+
+enum MtlCommand {
+    /// `newmtl`
+    NewMaterial(Box<str>),
+
+    /// Integer property
+    Integer(Box<str>, u32),
+
+    /// Float property
+    Float(Box<str>, f32),
+
+    /// Vector property
+    Vector(Box<str>, Vec3),
+
+    /// Path property
+    Path(Box<str>, Box<Path>),
+
+    /// Any other unknown keyword
+    Unknown(Box<str>, Box<[Box<str>]>),
+}
 
 /// Represents the parser of OBJ/MTL.
 #[derive(Debug, Default)]
@@ -16,14 +70,18 @@ pub struct Parser<F> {
     include_function: F,
 }
 
-impl<F: Fn(&str) -> Result<R>, R: Read> Parser<F> {
+impl<F, R> Parser<F>
+where
+    F: Fn(&str) -> Result<R>,
+    R: Read,
+{
     /// Creates an instance of `Parser`.
     /// # Parameters
     /// * `include_function`
     ///     - An resolver closure/function for MTL file
     ///     - When detects `mtllib` command, it tries to resolve the path of
-    ///       MTL file. The parser calls this resolver with detected path, so
-    ///       you can return any `Read` instance or error.
+    ///       MTL file. The parser calls this resolver with detected path and context object,
+    ///       so you can return any `Read` instance or error.
     pub fn new(include_function: F) -> Parser<F> {
         Parser { include_function }
     }
@@ -34,7 +92,7 @@ impl<F: Fn(&str) -> Result<R>, R: Read> Parser<F> {
 
         let mut line_buffer = String::with_capacity(1024);
         let mut obj_buffer = ObjBuffer::default();
-        let mut mtl_buffer = MtlBuffer::default();
+        // let mut mtl_buffer = MtlBuffer::default();
         loop {
             line_buffer.clear();
             let read_size = reader.read_line(&mut line_buffer)?;
@@ -53,116 +111,62 @@ impl<F: Fn(&str) -> Result<R>, R: Read> Parser<F> {
                 .expect("Each line should have at least one element");
             let data: Vec<&str> = elements.collect();
 
-            self.process_obj_line(&mut obj_buffer, &mut mtl_buffer, keyword, &data)?;
+            // self.process_obj_line(&mut obj_buffer, &mut mtl_buffer, keyword, &data)?;
         }
-        obj_buffer.commit_object();
-        mtl_buffer.commit_material();
+        // obj_buffer.commit_object();
+        // mtl_buffer.commit_material();
 
+        todo!()
+        /*
         Ok(WavefrontObj {
             objects: obj_buffer.complete_objects.into_boxed_slice(),
             materials: mtl_buffer.complete_materials.into_boxed_slice(),
         })
-    }
-
-    fn process_obj_line(
-        &self,
-        obj_buffer: &mut ObjBuffer,
-        mtl_buffer: &mut MtlBuffer,
-        keyword: &str,
-        data: &[&str],
-    ) -> AnyResult<()> {
-        match keyword {
-            "mtllib" => {
-                let path = data.get(0).ok_or_else(|| ObjError::PathNotFound)?;
-                let include_function = &self.include_function;
-                let mtl_reader = include_function(path)?;
-                parse_mtl(mtl_buffer, mtl_reader)?;
-            }
-            "o" => {
-                obj_buffer.commit_object();
-                obj_buffer.object_buffer.name = data.get(0).map(|&s| s.to_owned());
-            }
-            "g" => {
-                obj_buffer.commit_group();
-                obj_buffer.group_buffer.name = data.get(0).map(|&s| s.to_owned());
-            }
-            "usemtl" => {
-                obj_buffer.group_buffer.material_name = data.get(0).map(|&s| s.to_owned());
-            }
-            "v" => {
-                obj_buffer.group_buffer.vertices.push(take_vec3(data)?);
-            }
-            "vt" => {
-                obj_buffer.group_buffer.texture_uvs.push(take_vec2(data)?);
-            }
-            "vn" => {
-                obj_buffer
-                    .group_buffer
-                    .vertex_normals
-                    .push(take_vec3(data)?.normalized());
-            }
-            "f" => {
-                let face = parse_face(obj_buffer, data)?;
-                obj_buffer.group_buffer.faces.push(face);
-            }
-            _ => {
-                warn!("Unsupported OBJ keyword: {}", keyword);
-            }
-        }
-        Ok(())
+        */
     }
 }
 
 /// Parses a `f` command.
 fn parse_face(
-    obj_buffer: &mut ObjBuffer,
     vertices: impl IntoIterator<Item = impl AsRef<str>>,
-) -> AnyResult<Box<[FaceIndexPair]>> {
+    vertex_offset: usize,
+    uv_offset: usize,
+    normal_offset: usize,
+) -> Result<Box<[FaceIndexPair]>> {
+    let not_enough = |c| Error::NotEnoughData {
+        expected: 3,
+        found: c,
+    };
+
     let mut index_pairs = vec![];
-    let vertices = vertices.into_iter();
-    let offsets = [
-        obj_buffer.index_offsets.0,
-        obj_buffer.index_offsets.1,
-        obj_buffer.index_offsets.2,
-    ];
     for vertex in vertices {
-        let indices = vertex
-            .as_ref()
-            .split('/')
-            .zip(offsets.iter())
-            .try_fold::<_, _, Result<_, Box<dyn Error + Send + Sync>>>(
-                vec![],
-                |mut v, (s, offset)| {
-                    if s == "" {
-                        v.push(None);
-                        return Ok(v);
-                    }
-
-                    let parsed = s.parse::<usize>()?;
-                    let nzvalue =
-                        NonZeroUsize::new(parsed - offset).ok_or(ObjError::InvalidIndex)?;
-                    v.push(Some(nzvalue));
-                    Ok(v)
-                },
-            )?;
-
-        match indices.len() {
-            1 => {
-                index_pairs.push(FaceIndexPair(
-                    indices[0].ok_or(ObjError::InvalidIndex)?,
-                    None,
-                    None,
-                ));
+        let indices_str = vertex.as_ref().split('/');
+        let mut indices = indices_str.map(|s| {
+            if s != "" {
+                Some(s.parse::<usize>())
+            } else {
+                None
             }
-            3 => {
-                index_pairs.push(FaceIndexPair(
-                    indices[0].ok_or(ObjError::InvalidIndex)?,
-                    indices[1],
-                    indices[2],
-                ));
-            }
-            _ => return Err(ObjError::InvalidFaceVertex.into()),
-        }
+        });
+        let vertex_index = match indices.next() {
+            Some(Some(Ok(v))) => v - 1 - vertex_offset,
+            Some(Some(Err(_))) => return Err(Error::ParseError),
+            Some(None) => return Err(Error::InvalidFaceVertex),
+            None => return Err(not_enough(0)),
+        };
+        let uv_index = match indices.next() {
+            Some(Some(Ok(v))) => Some(v - 1 - uv_offset),
+            Some(Some(Err(_))) => return Err(Error::ParseError),
+            Some(None) => None,
+            None => None,
+        };
+        let normal_index = match indices.next() {
+            Some(Some(Ok(v))) => Some(v - 1 - normal_offset),
+            Some(Some(Err(_))) => return Err(Error::ParseError),
+            Some(None) => None,
+            None => None,
+        };
+        index_pairs.push(FaceIndexPair(vertex_index, uv_index, normal_index));
     }
 
     Ok(index_pairs.into_boxed_slice())
@@ -196,6 +200,7 @@ impl GroupBuffer {
         self.normals.push(normal);
     }
 
+    /*
     pub(crate) fn add_face(
         &mut self,
         index_pairs: impl IntoIterator<Item = FaceIndexPair>,
@@ -220,16 +225,7 @@ impl GroupBuffer {
         self.faces.push(face.into_boxed_slice());
         Ok(())
     }
-
-    pub(crate) fn into_group(self) -> Group {
-        Group {
-            name: self.name,
-            vertices: self.vertices.into_boxed_slice(),
-            texture_uvs: self.texture_uvs.into_boxed_slice(),
-            normals: self.normals.into_boxed_slice(),
-            face_index_pairs: self.faces.into_boxed_slice(),
-        }
-    }
+    */
 }
 
 #[derive(Debug, Default)]
@@ -240,24 +236,7 @@ struct ObjectBuffer {
 }
 
 impl ObjectBuffer {
-    pub(crate) fn process_command(&mut self, key: &str, data: &[&str]) -> Result<()> {
-        match key {
-            "v" => {
-                self.group_buffer.add_vertex(take_vec3(data)?);
-            }
-            "vt" => {
-                self.group_buffer.add_texture_uv(take_vec2(data)?);
-            },
-            "vn" => {
-                self.group_buffer.add_normal(take_vec3(data)?);
-            },
-            "f" => (),
-            _ => unreachable!("Unprocessable command"),
-        }
-
-        Ok(())
-    }
-
+    /*
     fn commit_group(&mut self, next_name: Option<String>) -> (usize, usize, usize) {
         let offsets = (
             self.group_buffer.vertices.len(),
@@ -281,6 +260,7 @@ impl ObjectBuffer {
             groups: self.complete_groups.into_boxed_slice(),
         }
     }
+    */
 }
 
 #[derive(Debug, Default)]
@@ -291,6 +271,7 @@ struct ObjBuffer {
 }
 
 impl ObjBuffer {
+    /*
     fn commit_object(&mut self, next_name: Option<String>) {
         let object = self.object_buffer.into_object();
         self.complete_objects.push(object);
@@ -327,32 +308,18 @@ impl ObjBuffer {
         }
         self.group_buffer = Default::default();
     }
-}
-
-#[derive(Debug, Default)]
-struct MtlBuffer {
-    name: String,
-    properties: HashMap<String, MaterialProperty>,
-    complete_materials: Vec<Material>,
-}
-
-impl MtlBuffer {
-    fn commit_material(&mut self) {
-        if self.properties.len() > 0 {
-            let group = Material {
-                name: self.name.clone(),
-                properties: self.properties.clone(),
-            };
-            self.complete_materials.push(group);
-        }
-        self.properties.clear();
-    }
+    */
 }
 
 /// Parses MTL file.
-fn parse_mtl(mtl_buffer: &mut MtlBuffer, reader: impl Read) -> Result<()> {
-    let mut reader = BufReader::new(reader);
+/// The reader will be wrapped with `BufReader`, so you don't have to
+/// do so.
+fn parse_mtl(reader: impl Read) -> Result<Box<[Material]>> {
+    let mut materials = vec![];
+    let mut properties = HashMap::new();
+    let mut name = String::new().into_boxed_str();
 
+    let mut reader = BufReader::new(reader);
     let mut line_buffer = String::with_capacity(1024);
     loop {
         line_buffer.clear();
@@ -372,101 +339,182 @@ fn parse_mtl(mtl_buffer: &mut MtlBuffer, reader: impl Read) -> Result<()> {
             .expect("Each line should have at least one element");
         let data: Vec<&str> = elements.collect();
 
-        process_mtl_line(mtl_buffer, keyword, &data)?;
+        let command = parse_mtl_line(keyword, &data)?;
+        match command {
+            MtlCommand::NewMaterial(next_name) => {
+                let material = Material { name, properties };
+                materials.push(material);
+
+                properties = HashMap::new();
+                name = next_name;
+            }
+            MtlCommand::Vector(n, v) => {
+                properties.insert(n.into(), MaterialProperty::Vector(v));
+            }
+            MtlCommand::Float(n, v) => {
+                properties.insert(n.into(), MaterialProperty::Float(v));
+            }
+            MtlCommand::Integer(n, v) => {
+                properties.insert(n.into(), MaterialProperty::Integer(v));
+            }
+            MtlCommand::Path(n, v) => {
+                properties.insert(n.into(), MaterialProperty::Path(v));
+            }
+            MtlCommand::Unknown(keyword, _) => {
+                warn!("Unsupported MTL keyword: {}", keyword);
+            }
+        }
     }
 
-    Ok(())
+    Ok(materials.into_boxed_slice())
+}
+
+/// Parses a line of OBJ file.
+fn parse_obj_line(keyword: &str, data: &[&str]) -> Result<ObjCommand> {
+    let value = match keyword {
+        "mtllib" => {
+            let filename = data.get(0).ok_or(Error::NotEnoughData {
+                expected: 1,
+                found: 0,
+            })?;
+            ObjCommand::MaterialLibrary(filename.to_string().into_boxed_str())
+        }
+        "usemtl" => {
+            let material = data.get(0).ok_or(Error::NotEnoughData {
+                expected: 1,
+                found: 0,
+            })?;
+            ObjCommand::UseMaterial(material.to_string().into_boxed_str())
+        }
+        "o" => {
+            let name = data.get(0).map(|name| name.to_string().into_boxed_str());
+            ObjCommand::Object(name)
+        }
+        "g" => {
+            let name = data.get(0).map(|name| name.to_string().into_boxed_str());
+            ObjCommand::Group(name)
+        }
+        "v" => {
+            let value = take_vec3(data)?;
+            ObjCommand::Vertex(value)
+        }
+        "vt" => {
+            let value = take_vec2(data)?;
+            ObjCommand::VertexUv(value)
+        }
+        "vn" => {
+            let value = take_vec3(data)?;
+            ObjCommand::VertexNormal(value)
+        }
+        "f" => {
+            let face = parse_face(data, 0, 0, 0)?;
+            ObjCommand::Face(face)
+        }
+        _ => {
+            let owned_data: Vec<_> = data
+                .iter()
+                .map(|s| s.to_string().into_boxed_str())
+                .collect();
+            ObjCommand::Unknown(keyword.into(), owned_data.into_boxed_slice())
+        }
+    };
+
+    Ok(value)
 }
 
 /// Parses a line of MTL file.
-fn process_mtl_line(mtl_buffer: &mut MtlBuffer, keyword: &str, data: &[&str]) -> Result<()> {
-    match keyword {
+fn parse_mtl_line(keyword: &str, data: &[&str]) -> Result<MtlCommand> {
+    let value = match keyword {
         "newmtl" => {
-            mtl_buffer.commit_material();
-            mtl_buffer.name = data.get(0).unwrap_or(&"").to_string();
+            let name = data.get(0).unwrap_or(&"").to_string();
+            MtlCommand::NewMaterial(name.into_boxed_str())
         }
         "illum" => {
             let value = take_single(data)?;
-            mtl_buffer
-                .properties
-                .insert("illum".to_owned(), MaterialProperty::Integer(value));
+            MtlCommand::Integer(keyword.into(), value)
         }
         k if k.starts_with("K") => {
             let value = take_vec3(data)?;
-            mtl_buffer
-                .properties
-                .insert(k.to_owned(), MaterialProperty::Vector(value));
+            MtlCommand::Vector(keyword.into(), value)
         }
         k if k.starts_with("N") => {
             let value = take_single(data)?;
-            mtl_buffer
-                .properties
-                .insert(k.to_owned(), MaterialProperty::Float(value));
+            MtlCommand::Float(keyword.into(), value)
         }
         k if k.starts_with("map_") => {
             let value = data.get(0).unwrap_or(&"").replace("\\\\", "\\");
             let value = PathBuf::from_str(&value).map_err(|_| Error::PathNotFound(value))?;
-            mtl_buffer.properties.insert(
-                k.to_owned(),
-                MaterialProperty::Path(value.into_boxed_path()),
-            );
+            MtlCommand::Path(keyword.into(), value.into_boxed_path())
         }
         _ => {
-            warn!("Unsupported MTL keyword: {}", keyword);
+            let owned_data: Vec<_> = data
+                .iter()
+                .map(|s| s.to_string().into_boxed_str())
+                .collect();
+            MtlCommand::Unknown(keyword.into(), owned_data.into_boxed_slice())
         }
-    }
-    Ok(())
+    };
+
+    Ok(value)
 }
 
 /// Consumes the iterator and parses the first element.
-pub(crate) fn take_single<T>(it: impl IntoIterator<Item = impl AsRef<str>>) -> Result<T>
-where
-    T: FromStr,
-    <T as FromStr>::Err: 'static + Error + Send + Sync,
-{
+pub(crate) fn take_single<T: FromStr>(it: impl IntoIterator<Item = impl AsRef<str>>) -> Result<T> {
     let mut it = it.into_iter();
-    let first = it.next().ok_or_else(|| ObjError::NotEnoughData {
+    let first = it.next().ok_or_else(|| Error::NotEnoughData {
         found: 0,
         expected: 1,
     })?;
 
-    Ok(first.as_ref().parse()?)
+    let value = first.as_ref().parse().map_err(|_| Error::ParseError)?;
+    Ok(value)
 }
 
-/// イテレーターを消費して Vec2 を生成する。
+/// Consumes the iterator and parses into `Vec2`.
 pub(crate) fn take_vec2(it: impl IntoIterator<Item = impl AsRef<str>>) -> Result<Vec2> {
     let mut it = it.into_iter();
-    let first = it.next().ok_or_else(|| ObjError::NotEnoughData {
-        found: 0,
-        expected: 2,
-    })?;
-    let second = it.next().ok_or_else(|| ObjError::NotEnoughData {
-        found: 1,
-        expected: 2,
-    })?;
+    let first = it
+        .next()
+        .ok_or_else(|| Error::NotEnoughData {
+            found: 0,
+            expected: 2,
+        })
+        .and_then(|s| s.as_ref().parse().map_err(|_| Error::ParseError))?;
+    let second = it
+        .next()
+        .ok_or_else(|| Error::NotEnoughData {
+            found: 1,
+            expected: 2,
+        })
+        .and_then(|s| s.as_ref().parse().map_err(|_| Error::ParseError))?;
 
-    Ok(Vec2::new(first.as_ref().parse()?, second.as_ref().parse()?))
+    Ok(Vec2::new(first, second))
 }
 
-/// イテレーターを消費して Vec3 を生成する。
+/// Consumes the iterator and parses into `Vec3`.
 pub(crate) fn take_vec3(it: impl IntoIterator<Item = impl AsRef<str>>) -> Result<Vec3> {
     let mut it = it.into_iter();
-    let first = it.next().ok_or_else(|| ObjError::NotEnoughData {
-        found: 0,
-        expected: 3,
-    })?;
-    let second = it.next().ok_or_else(|| ObjError::NotEnoughData {
-        found: 1,
-        expected: 3,
-    })?;
-    let third = it.next().ok_or_else(|| ObjError::NotEnoughData {
-        found: 2,
-        expected: 3,
-    })?;
+    let first = it
+        .next()
+        .ok_or_else(|| Error::NotEnoughData {
+            found: 0,
+            expected: 2,
+        })
+        .and_then(|s| s.as_ref().parse().map_err(|_| Error::ParseError))?;
+    let second = it
+        .next()
+        .ok_or_else(|| Error::NotEnoughData {
+            found: 0,
+            expected: 2,
+        })
+        .and_then(|s| s.as_ref().parse().map_err(|_| Error::ParseError))?;
+    let third = it
+        .next()
+        .ok_or_else(|| Error::NotEnoughData {
+            found: 0,
+            expected: 2,
+        })
+        .and_then(|s| s.as_ref().parse().map_err(|_| Error::ParseError))?;
 
-    Ok(Vec3::new(
-        first.as_ref().parse()?,
-        second.as_ref().parse()?,
-        third.as_ref().parse()?,
-    ))
+    Ok(Vec3::new(first, second, third))
 }

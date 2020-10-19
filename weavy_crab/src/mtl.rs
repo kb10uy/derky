@@ -24,8 +24,8 @@ pub enum MaterialProperty {
 /// Represents a material defined in MTL file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Material {
-    name: String,
-    properties: HashMap<String, MaterialProperty>,
+    pub(crate) name: Box<str>,
+    pub(crate) properties: HashMap<String, MaterialProperty>,
 }
 
 impl Material {

@@ -2,7 +2,7 @@ use ultraviolet::{Vec2, Vec3};
 
 /// Represents an index pair in face definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FaceIndexPair(usize, Option<usize>, Option<usize>);
+pub struct FaceIndexPair(pub usize, pub Option<usize>, pub Option<usize>);
 
 /// Represents an object in OBJ file.
 #[derive(Debug, Clone)]
