@@ -389,6 +389,7 @@ dependencies = [
  "glium",
  "image",
  "itertools",
+ "lazy_static",
  "log",
  "pretty_env_logger",
  "ultraviolet",

@@ -1,6 +1,3 @@
-// 合成用のバーテックスシェーダー
-// 基本的にスクリーン全体を覆うだけ
-
 #version 450
 
 uniform mat4 env_screen_matrix;

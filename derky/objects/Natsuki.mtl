@@ -10,7 +10,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-clothes.png
 
 newmtl ClothesCutout
 Ns 47.790167
@@ -21,8 +21,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
-map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+map_d D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-clothes.png
 
 newmtl ClothesOpaque
 Ns 900.000000
@@ -33,7 +33,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-clothes.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-clothes.png
 
 newmtl Eye
 Ns 0.000000
@@ -44,7 +44,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-eye.png
 
 newmtl Eyehairs
 Ns 0.000000
@@ -55,8 +55,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
-map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-eye.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-eye.png
+map_d D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-eye.png
 
 newmtl Hair
 Ns 0.000000
@@ -67,7 +67,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-hair.jpg
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-hair.jpg
 
 newmtl Skin
 Ns 0.000000
@@ -78,7 +78,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-body.jpg
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-body.jpg
 
 newmtl Underwears
 Ns 0.000000
@@ -89,5 +89,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png
-map_d D:\\kb10uy\\Assets\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png
+map_Kd D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png
+map_d D:\\kb10uy\\Assets\\Avatars\\Natsuki\\materials\\drawn\\natsuki-underwears-2.png

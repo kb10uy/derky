@@ -55,3 +55,22 @@ pub fn load_program(display: &impl Facade, basename: &str) -> AnyResult<Program>
         })?;
     Ok(program)
 }
+
+/// シェーダーを読み込む。
+pub fn load_screen_program(display: &impl Facade, basename: &str) -> AnyResult<Program> {
+    let mut vertex_file = BufReader::new(File::open("shaders/deferred_screen.vert")?);
+    let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
+
+    let mut vertex_shader = String::with_capacity(1024);
+    let mut fragment_shader = String::with_capacity(1024);
+
+    vertex_file.read_to_string(&mut vertex_shader)?;
+    fragment_file.read_to_string(&mut fragment_shader)?;
+
+    let program =
+        Program::from_source(display, &vertex_shader, &fragment_shader, None).map_err(|e| {
+            error!("Failed to compile the shader \"{}\": {}", basename, e);
+            e
+        })?;
+    Ok(program)
+}

@@ -24,5 +24,8 @@ version = "0.23"
 [dependencies.itertools]
 version = "0.9"
 
+[dependencies.lazy_static]
+version = "1.4"
+
 [dependencies.weavy_crab]
 path = "../weavy_crab"

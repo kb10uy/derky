@@ -5,7 +5,7 @@ mod material;
 mod model;
 
 use crate::{
-    rendering::{load_program, UniformsSet},
+    rendering::{load_program, load_screen_program, UniformsSet},
     AnyResult,
 };
 use environment::Environment;
@@ -63,7 +63,8 @@ pub struct Application {
     environment: Environment,
     elapsed_time: Duration,
     program_geometry: Program,
-    program_lighting: Program,
+    program_ambient_lighting: Program,
+    program_directional_lighting: Program,
     program_composition: Program,
     vertices_screen: VertexBuffer<CompositionVertex>,
     indices_screen: IndexBuffer<u16>,
@@ -75,8 +76,9 @@ impl Application {
         let model = Application::load_model(display, "objects/Natsuki.obj")?;
 
         let program_geometry = load_program(display, "deferred_geometry")?;
-        let program_lighting = load_program(display, "deferred_lighting")?;
-        let program_composition = load_program(display, "deferred_composition")?;
+        let program_ambient_lighting = load_screen_program(display, "deferred_ambient_lighting")?;
+        let program_directional_lighting = load_screen_program(display, "deferred_directional_lighting")?;
+        let program_composition = load_screen_program(display, "deferred_composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =
@@ -89,7 +91,8 @@ impl Application {
             environment,
             elapsed_time: Duration::new(0, 0),
             program_geometry,
-            program_lighting,
+            program_ambient_lighting,
+            program_directional_lighting,
             program_composition,
             vertices_screen,
             indices_screen,
@@ -100,6 +103,7 @@ impl Application {
     /// 毎フレーム呼び出される。シーン内の情報を更新する。
     pub fn tick(&mut self, delta: Duration) {
         self.elapsed_time += delta;
+        self.environment.tick(delta);
     }
 
     /// ジオメトリパスの描画をする。
@@ -147,16 +151,6 @@ impl Application {
         lighting_buffer: &mut SimpleFrameBuffer,
         uniforms: impl Uniforms,
     ) -> AnyResult<()> {
-        let light_direction: [f32; 3] = Vec3::new(0.1, -0.9, -0.4).normalized().into();
-        let light_color: [f32; 3] = Vec3::new(1.0, 1.0, 1.0).into();
-
-        let uniforms = UniformsSet::new(uniforms)
-            .add(self.environment.get_unforms())
-            .add(uniform! {
-                light_directional_direction: light_direction,
-                light_directional_color: light_color,
-            });
-
         let params = DrawParameters {
             blend: Blend {
                 color: BlendingFunction::Addition {
@@ -172,13 +166,36 @@ impl Application {
             ..Default::default()
         };
 
+        // Ambient
+        let uniforms = UniformsSet::new(uniforms)
+            .add(self.environment.get_unforms())
+            .add(self.environment.ambient_light().to_uniforms());
         lighting_buffer.draw(
             &self.vertices_screen,
             &self.indices_screen,
-            &self.program_lighting,
+            &self.program_ambient_lighting,
             &uniforms,
             &params,
         )?;
+
+        // Directional
+        let light_direction: [f32; 3] = Vec3::new(0.1, -0.9, -0.4).normalized().into();
+        let light_color: [f32; 3] = Vec3::new(1.0, 1.0, 1.0).into();
+        let uniforms = UniformsSet::new(uniforms)
+            .add(self.environment.get_unforms())
+            .add(uniform! {
+                light_directional_direction: light_direction,
+                light_directional_color: light_color,
+            });
+        lighting_buffer.draw(
+            &self.vertices_screen,
+            &self.indices_screen,
+            &self.program_directional_lighting,
+            &uniforms,
+            &params,
+        )?;
+
+        // Point
 
         Ok(())
     }

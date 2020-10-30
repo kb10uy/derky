@@ -1,7 +1,3 @@
-// ライティングパスのフラグメントシェーダー
-// ディレクショナルライトを処理
-// Lambert 反射
-
 #version 450
 
 uniform sampler2D g_position;
