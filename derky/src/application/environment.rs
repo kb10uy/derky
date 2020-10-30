@@ -69,7 +69,7 @@ impl Environment {
             camera_position: Vec3::new(0.0, 0.0, 0.0),
             projection_matrix: perspective_gl(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
             elapsed_time: Default::default(),
-            ambient_light: AmbientLight(Vec3::new(0.1, 0.1, 0.1)),
+            ambient_light: AmbientLight(Vec3::new(0.05, 0.05, 0.05)),
         }
     }
 
