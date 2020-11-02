@@ -132,9 +132,22 @@ impl Model {
                 let reader = ImageReader::new(BufReader::new(file)).with_guessed_format()?;
                 reader.decode()?.into_rgba()
             } else {
-                info!("Creating dummy image");
+                let color = original_material
+                    .diffuse_color()
+                    .unwrap_or(Vec3::new(1.0, 1.0, 1.0));
+                info!("Creating dummy image: {:?}", color);
+
                 let mut image = RgbaImage::new(1, 1);
-                image.put_pixel(0, 0, Rgba([255, 255, 255, 255]));
+                image.put_pixel(
+                    0,
+                    0,
+                    Rgba([
+                        (color.x * 255.0) as u8,
+                        (color.y * 255.0) as u8,
+                        (color.z * 255.0) as u8,
+                        255,
+                    ]),
+                );
                 image
             };
 

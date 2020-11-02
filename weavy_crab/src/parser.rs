@@ -270,8 +270,10 @@ impl<C, R: Read> Parser<C, R> {
             let command = parse_mtl_line(keyword, &data)?;
             match command {
                 MtlCommand::NewMaterial(next_name) => {
-                    let material = Material { name, properties };
-                    materials.push(material);
+                    if !properties.is_empty() {
+                        let material = Material { name, properties };
+                        materials.push(material);
+                    }
 
                     properties = HashMap::new();
                     name = next_name;
@@ -293,6 +295,9 @@ impl<C, R: Read> Parser<C, R> {
                 }
             }
         }
+
+        let last_material = Material { name, properties };
+        materials.push(last_material);
 
         Ok(materials.into_boxed_slice())
     }

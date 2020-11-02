@@ -17,8 +17,7 @@ use glium::{
         ContextBuilder,
     },
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
-    uniform,
-    Display, Surface,
+    uniform, Display, Surface,
 };
 use log::info;
 use ultraviolet::Mat4;
@@ -97,16 +96,16 @@ fn main() -> AnyResult<()> {
         */
 
         // ライティングパス
-        lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-        app.draw_lighting(
-            &mut lighting_buffer,
+        let uniforms_generator = || {
             uniform! {
                 env_screen_matrix: screen_matrix,
                 g_position: &buffer_refs.out_position,
                 g_normal: &buffer_refs.out_world_normal,
-            },
-        )
-        .expect("Failed to process the lighting path");
+            }
+        };
+        lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
+        app.draw_lighting(&mut lighting_buffer, uniforms_generator)
+            .expect("Failed to process the lighting path");
 
         // 合成
         let mut target = display.draw();

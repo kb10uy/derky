@@ -24,8 +24,8 @@ use glium::{
     index::PrimitiveType,
     uniform,
     uniforms::Uniforms,
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, IndexBuffer,
-    LinearBlendingFactor, Program, Surface, VertexBuffer,
+    BackfaceCullingMode, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame,
+    IndexBuffer, LinearBlendingFactor, Program, Surface, VertexBuffer,
 };
 use log::info;
 use ultraviolet::{Mat4, Vec3};
@@ -65,19 +65,24 @@ pub struct Application {
     program_geometry: Program,
     program_ambient_lighting: Program,
     program_directional_lighting: Program,
+    program_point_lighting: Program,
     program_composition: Program,
     vertices_screen: VertexBuffer<CompositionVertex>,
     indices_screen: IndexBuffer<u16>,
     model: Model,
+    model_room: Model,
 }
 
 impl Application {
     pub fn new(display: &Display) -> AnyResult<Application> {
         let model = Application::load_model(display, "objects/Natsuki.obj")?;
+        let model_room = Application::load_model(display, "objects/Room.obj")?;
 
         let program_geometry = load_program(display, "deferred_geometry")?;
         let program_ambient_lighting = load_screen_program(display, "deferred_ambient_lighting")?;
-        let program_directional_lighting = load_screen_program(display, "deferred_directional_lighting")?;
+        let program_directional_lighting =
+            load_screen_program(display, "deferred_directional_lighting")?;
+        let program_point_lighting = load_screen_program(display, "deferred_point_lighting")?;
         let program_composition = load_screen_program(display, "deferred_composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
@@ -93,10 +98,12 @@ impl Application {
             program_geometry,
             program_ambient_lighting,
             program_directional_lighting,
+            program_point_lighting,
             program_composition,
             vertices_screen,
             indices_screen,
             model,
+            model_room,
         })
     }
 
@@ -113,6 +120,7 @@ impl Application {
         generate_uniforms: UG,
     ) -> AnyResult<()> {
         let angle = self.elapsed_time.as_secs_f32() * PI;
+        let room_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let model_matrix: [[f32; 4]; 4] = Mat4::from_rotation_y(angle).into();
 
         let params = DrawParameters {
@@ -121,10 +129,29 @@ impl Application {
                 write: true,
                 ..Default::default()
             },
+            backface_culling: BackfaceCullingMode::CullClockwise,
             ..Default::default()
         };
 
         let program = &self.program_geometry;
+
+        self.model_room.visit_groups(|vb, ib, material| {
+            let albedo = match material {
+                Some(Material::Diffuse { albedo, .. }) => albedo,
+                _ => return Ok(()),
+            };
+
+            let uniforms = UniformsSet::new(generate_uniforms())
+                .add(self.environment.get_unforms())
+                .add(uniform! {
+                    model_matrix: room_matrix,
+                    material_albedo: albedo,
+                });
+
+            geometry_buffer.draw(vb, ib, program, &uniforms, &params)?;
+            Ok(())
+        })?;
+
         self.model.visit_groups(|vb, ib, material| {
             let albedo = match material {
                 Some(Material::Diffuse { albedo, .. }) => albedo,
@@ -134,7 +161,7 @@ impl Application {
             let uniforms = UniformsSet::new(generate_uniforms())
                 .add(self.environment.get_unforms())
                 .add(uniform! {
-                    model_matrix: model_matrix,
+                    model_matrix: room_matrix,
                     material_albedo: albedo,
                 });
 
@@ -146,10 +173,10 @@ impl Application {
     }
 
     /// ライティングパスの描画をする。
-    pub fn draw_lighting(
+    pub fn draw_lighting<UG: Fn() -> U, U: Uniforms>(
         &mut self,
         lighting_buffer: &mut SimpleFrameBuffer,
-        uniforms: impl Uniforms,
+        generate_uniforms: UG,
     ) -> AnyResult<()> {
         let params = DrawParameters {
             blend: Blend {
@@ -167,21 +194,22 @@ impl Application {
         };
 
         // Ambient
-        let uniforms = UniformsSet::new(uniforms)
+        let uniforms_set = UniformsSet::new(generate_uniforms())
             .add(self.environment.get_unforms())
             .add(self.environment.ambient_light().to_uniforms());
         lighting_buffer.draw(
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_ambient_lighting,
-            &uniforms,
+            &uniforms_set,
             &params,
         )?;
 
         // Directional
+        /*
         let light_direction: [f32; 3] = Vec3::new(0.1, -0.9, -0.4).normalized().into();
         let light_color: [f32; 3] = Vec3::new(1.0, 1.0, 1.0).into();
-        let uniforms = UniformsSet::new(uniforms)
+        let uniforms_set = UniformsSet::new(generate_uniforms())
             .add(self.environment.get_unforms())
             .add(uniform! {
                 light_directional_direction: light_direction,
@@ -191,11 +219,25 @@ impl Application {
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_directional_lighting,
-            &uniforms,
+            &uniforms_set,
             &params,
         )?;
+        */
 
         // Point
+        let point_lights = self.environment.point_lights();
+        for point_light in point_lights {
+            let uniforms_set = UniformsSet::new(generate_uniforms())
+                .add(self.environment.get_unforms())
+                .add(point_light.to_uniforms());
+            lighting_buffer.draw(
+                &self.vertices_screen,
+                &self.indices_screen,
+                &self.program_point_lighting,
+                &uniforms_set,
+                &params,
+            )?;
+        }
 
         Ok(())
     }
