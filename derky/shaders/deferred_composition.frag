@@ -1,7 +1,13 @@
 #version 460
 
-layout(binding = 0) uniform atomic_uint env_prev_luminance;
-layout(binding = 1) uniform atomic_uint env_next_luminance;
+layout(binding = 0, offset = 0) uniform atomic_uint luma_next_0;
+layout(binding = 0, offset = 4) uniform atomic_uint luma_next_1;
+layout(binding = 0, offset = 8) uniform atomic_uint luma_next_2;
+layout(binding = 0, offset = 12) uniform atomic_uint luma_next_3;
+layout(binding = 0, offset = 16) uniform atomic_uint luma_next_4;
+layout(binding = 0, offset = 20) uniform atomic_uint luma_next_5;
+layout(binding = 0, offset = 24) uniform atomic_uint luma_next_6;
+layout(binding = 0, offset = 28) uniform atomic_uint luma_next_7;
 uniform sampler2D tex_unlit;
 uniform sampler2D tex_lighting;
 
@@ -22,7 +28,25 @@ void main() {
     vec3 out_color = unlit_color * light_color * exposure;
     float out_luminance = luminance(out_color);
 
-    atomicCounterAdd(env_next_luminance, uint(out_luminance * 32.0));
+    if (out_luminance < 0.125) {
+        atomicCounterIncrement(luma_next_0);
+    } else if (out_luminance < 0.250) {
+        atomicCounterIncrement(luma_next_1);
+    } else if (out_luminance < 0.375) {
+        atomicCounterIncrement(luma_next_2);
+    } /* else if (out_luminance < 0.500) {
+        atomicCounterIncrement(luma_prev_3);
+    } else if (out_luminance < 0.625) {
+        atomicCounterIncrement(luma_prev_4);
+    } else if (out_luminance < 0.750) {
+        atomicCounterIncrement(luma_prev_5);
+    } else if (out_luminance < 0.875) {
+        atomicCounterIncrement(luma_prev_6);
+    } else {
+        atomicCounterIncrement(luma_prev_7);
+    }
+    */
+    // atomicCounterAdd(env_next_luminance, uint(out_luminance * 32.0));
 
     /*
     // Left/Right visualization
