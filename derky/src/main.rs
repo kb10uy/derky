@@ -18,11 +18,6 @@ use glium::{
 use log::info;
 use ultraviolet::Mat4;
 
-struct Luminances {
-    previous: Buffer<[u32]>,
-    next: Buffer<[u32]>,
-}
-
 fn main() -> Result<()> {
     pretty_env_logger::init();
 

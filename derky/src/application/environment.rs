@@ -69,22 +69,26 @@ impl Environment {
         let point_lights = vec![
             PointLight {
                 position: Vec3::new(-0.5, 0.5, 0.0),
-                intensity: Vec3::new(1.0, 0.0, 0.0),
+                intensity: Vec3::new(10.0, 0.0, 0.0),
             },
             PointLight {
                 position: Vec3::new(-0.5, 0.7, 0.0),
-                intensity: Vec3::new(0.0, 1.0, 0.0),
+                intensity: Vec3::new(0.0, 10.0, 0.0),
             },
             PointLight {
                 position: Vec3::new(0.0, 1.9, 0.0),
-                intensity: Vec3::new(0.0, 0.0, 3.0),
+                intensity: Vec3::new(20.0, 20.0, 20.0),
+            },
+            PointLight {
+                position: Vec3::new(0.0, 0.0, 1.9),
+                intensity: Vec3::new(10.0, 10.0, 10.0),
             },
         ];
         Environment {
             camera_position: Vec3::new(0.0, 0.0, 0.0),
             projection_matrix: perspective_gl(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
             elapsed_time: Default::default(),
-            ambient_light: AmbientLight(Vec3::new(0.05, 0.05, 0.05)),
+            ambient_light: AmbientLight(Vec3::new(0.0, 0.0, 0.0)),
             point_lights,
         }
     }
