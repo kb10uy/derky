@@ -1,13 +1,13 @@
 //! 描画用モデルに関係するモジュール。
 
 use super::material::Material;
-use crate::AnyResult;
 use std::{
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
 };
 
+use anyhow::Result;
 use glium::{
     backend::Facade,
     implement_vertex,
@@ -49,7 +49,7 @@ impl Model {
         facade: &impl Facade,
         obj: &WavefrontObj,
         base_path: impl AsRef<Path>,
-    ) -> AnyResult<Model> {
+    ) -> Result<Model> {
         let mut face_groups = vec![];
         let materials = Model::convert_materials(facade, obj.materials(), base_path)?;
 
@@ -104,8 +104,8 @@ impl Model {
             &VertexBuffer<Vertex>,
             &IndexBuffer<u32>,
             Option<&Material>,
-        ) -> AnyResult<()>,
-    ) -> AnyResult<()> {
+        ) -> Result<()>,
+    ) -> Result<()> {
         for (vb, ib, mi) in &self.face_groups[..] {
             let material = mi.map(|i| self.materials.get(i)).flatten();
             visitor(vb, ib, material)?;
@@ -118,7 +118,7 @@ impl Model {
         facade: &impl Facade,
         original_materials: &[WavefrontMaterial],
         base_path: impl AsRef<Path>,
-    ) -> AnyResult<Box<[Material]>> {
+    ) -> Result<Box<[Material]>> {
         let mut materials = vec![];
 
         for original_material in original_materials {

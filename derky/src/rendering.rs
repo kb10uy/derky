@@ -1,17 +1,29 @@
 //! レンダリング全般に利用される構造体などのモジュール。
 
-use crate::AnyResult;
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
 };
 
+use anyhow::Result;
 use glium::{
     backend::Facade,
+    glutin::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder},
+    texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
     uniforms::{EmptyUniforms, UniformValue, Uniforms},
-    Program,
+    Display, Program,
 };
 use log::error;
+use log::info;
+
+/// 各種バッファの運搬用
+pub struct Buffers {
+    pub out_albedo: Texture2d,
+    pub out_position: Texture2d,
+    pub out_world_normal: Texture2d,
+    pub lighting: Texture2d,
+    pub depth: DepthTexture2d,
+}
 
 /// UniformsStorage を結合するやつ。
 pub struct UniformsSet<H, T>(H, T);
@@ -38,7 +50,7 @@ impl<H: Uniforms, T: Uniforms> Uniforms for UniformsSet<H, T> {
 }
 
 /// シェーダーを読み込む。
-pub fn load_program(display: &impl Facade, basename: &str) -> AnyResult<Program> {
+pub fn load_program(display: &impl Facade, basename: &str) -> Result<Program> {
     let mut vertex_file = BufReader::new(File::open(format!("shaders/{}.vert", basename))?);
     let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
 
@@ -57,7 +69,7 @@ pub fn load_program(display: &impl Facade, basename: &str) -> AnyResult<Program>
 }
 
 /// シェーダーを読み込む。
-pub fn load_screen_program(display: &impl Facade, basename: &str) -> AnyResult<Program> {
+pub fn load_screen_program(display: &impl Facade, basename: &str) -> Result<Program> {
     let mut vertex_file = BufReader::new(File::open("shaders/deferred_screen.vert")?);
     let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
 
@@ -73,4 +85,67 @@ pub fn load_screen_program(display: &impl Facade, basename: &str) -> AnyResult<P
             e
         })?;
     Ok(program)
+}
+
+/// ウィンドウを生成する。
+pub fn intialize_window() -> (EventLoop<()>, Display) {
+    let event_loop = EventLoop::new();
+    let wb = WindowBuilder::new()
+        .with_resizable(false)
+        .with_inner_size(PhysicalSize::new(1280, 720));
+    let cb = ContextBuilder::new();
+    let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
+    info!(
+        "Supported OpenGL version: {}",
+        display.get_opengl_version_string()
+    );
+
+    (event_loop, display)
+}
+
+/// バッファを生成する。
+pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
+    let out_albedo = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
+    let out_position = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
+    let out_world_normal = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
+    let lighting = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
+    let depth = DepthTexture2d::empty_with_format(
+        display,
+        DepthFormat::F32,
+        MipmapsOption::NoMipmap,
+        1280,
+        720,
+    )?;
+
+    Ok(Buffers {
+        out_albedo,
+        out_position,
+        out_world_normal,
+        lighting,
+        depth,
+    })
 }

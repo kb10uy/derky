@@ -4,10 +4,7 @@ mod environment;
 mod material;
 mod model;
 
-use crate::{
-    rendering::{load_program, load_screen_program, UniformsSet},
-    AnyResult,
-};
+use crate::rendering::{load_program, load_screen_program, UniformsSet};
 use environment::Environment;
 use material::Material;
 use model::Model;
@@ -18,6 +15,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::{format_err, Result};
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     implement_vertex,
@@ -74,7 +72,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(display: &Display) -> AnyResult<Application> {
+    pub fn new(display: &Display) -> Result<Application> {
         let model = Application::load_model(display, "objects/Natsuki.obj")?;
         let model_room = Application::load_model(display, "objects/Room.obj")?;
 
@@ -118,7 +116,7 @@ impl Application {
         &mut self,
         geometry_buffer: &mut MultiOutputFrameBuffer,
         generate_uniforms: UG,
-    ) -> AnyResult<()> {
+    ) -> Result<()> {
         let angle = self.elapsed_time.as_secs_f32() * PI;
         let room_matrix: [[f32; 4]; 4] = Mat4::identity().into();
         let model_matrix: [[f32; 4]; 4] = Mat4::from_rotation_y(angle).into();
@@ -177,7 +175,7 @@ impl Application {
         &mut self,
         lighting_buffer: &mut SimpleFrameBuffer,
         generate_uniforms: UG,
-    ) -> AnyResult<()> {
+    ) -> Result<()> {
         let params = DrawParameters {
             blend: Blend {
                 color: BlendingFunction::Addition {
@@ -242,11 +240,7 @@ impl Application {
         Ok(())
     }
 
-    pub fn draw_composition(
-        &mut self,
-        frame: &mut Frame,
-        uniforms: impl Uniforms,
-    ) -> AnyResult<()> {
+    pub fn draw_composition(&mut self, frame: &mut Frame, uniforms: impl Uniforms) -> Result<()> {
         frame.draw(
             &self.vertices_screen,
             &self.indices_screen,
@@ -259,9 +253,9 @@ impl Application {
     }
 
     /// モデルを読み込む。
-    fn load_model(display: &Display, path: impl AsRef<Path>) -> AnyResult<Model> {
+    fn load_model(display: &Display, path: impl AsRef<Path>) -> Result<Model> {
         let path = path.as_ref();
-        let directory = PathBuf::from(path.parent().ok_or("Invalid path")?);
+        let directory = PathBuf::from(path.parent().ok_or_else(|| format_err!("Invalid path"))?);
 
         let include_base = directory.clone();
         let mut parser = Parser::new(move |filename, _| {

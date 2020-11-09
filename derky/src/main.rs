@@ -2,45 +2,30 @@ mod application;
 mod rendering;
 
 use application::Application;
-use std::{
-    error::Error,
-    time::{Duration, Instant},
-};
+use rendering::Buffers;
+use std::time::{Duration, Instant};
 
+use anyhow::Result;
 use glium::{
+    buffer::{Buffer, BufferMode, BufferType},
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     glutin::{
-        dpi::PhysicalSize,
-        event::{Event, WindowEvent},
-        event_loop::{ControlFlow, EventLoop},
-        window::WindowBuilder,
-        ContextBuilder,
+        event::{Event, StartCause, WindowEvent},
+        event_loop::ControlFlow,
     },
-    texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
-    uniform, Display, Surface,
+    uniform, Surface,
 };
 use log::info;
 use ultraviolet::Mat4;
 
-type AnyResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-
-/// 各種バッファの運搬用
-struct Buffers {
-    out_albedo: Texture2d,
-    out_position: Texture2d,
-    out_world_normal: Texture2d,
-    lighting: Texture2d,
-    depth: DepthTexture2d,
-}
-
-fn main() -> AnyResult<()> {
+fn main() -> Result<()> {
     pretty_env_logger::init();
 
-    let (event_loop, display) = intialize_window();
+    let (event_loop, display) = rendering::intialize_window();
     let mut app = Application::new(&display)?;
 
     // FrameBuffer セットアップ
-    let fixed_buffers = initialize_buffers(&display)?;
+    let fixed_buffers = rendering::initialize_buffers(&display)?;
     let buffer_refs: &'static Buffers = unsafe { std::mem::transmute(&fixed_buffers) };
     let mut frame_buffer = MultiOutputFrameBuffer::with_depth_buffer(
         &display,
@@ -53,47 +38,65 @@ fn main() -> AnyResult<()> {
     )?;
     let mut lighting_buffer =
         SimpleFrameBuffer::with_depth_buffer(&display, &buffer_refs.lighting, &buffer_refs.depth)?;
-    /*
-    let mut atomic_buffer = Buffer::<[u32]>::empty_array(
+
+    let prev_luminance = Buffer::new(
         &display,
+        &0u32,
         BufferType::AtomicCounterBuffer,
-        8,
-        BufferMode::Default,
+        BufferMode::Dynamic,
     )?;
-    */
+    let next_luminance = Buffer::new(
+        &display,
+        &0u32,
+        BufferType::AtomicCounterBuffer,
+        BufferMode::Dynamic,
+    )?;
 
     info!("Starting event loop");
+    let frame_time = Duration::from_nanos(33_333_333);
     let mut last_at = Instant::now();
     event_loop.run(move |ev, _, control_flow| {
+        *control_flow = ControlFlow::Poll;
+        match ev {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CloseRequested => {
+                    *control_flow = ControlFlow::Exit;
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+
+        let delta = last_at.elapsed();
+        if delta < frame_time {
+            return;
+        } else {
+            last_at = Instant::now();
+        }
+
         let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
 
-        // delta time 計算
-        let now = Instant::now();
-        let delta = now - last_at;
-        last_at = now;
+        // Luminance リセット
+        let prev_luminance_value = next_luminance.read().unwrap();
+        prev_luminance.write(&prev_luminance_value);
+        next_luminance.write(&0);
 
-        // atomic_buffer.write(&[0u32; 8]);
+        app.tick(delta);
+        info!(
+            "Delta: {:.2}ms, Luminance total: {}",
+            delta.as_secs_f64() * 1000.0,
+            prev_luminance_value
+        );
 
         // tick 処理
-        app.tick(delta);
 
         // ジオメトリパス
         let uniforms_generator = || {
-            uniform! {
-                // env_atomic_counters: &atomic_buffer,
-            }
+            uniform! {}
         };
         frame_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
         app.draw_geometry(&mut frame_buffer, uniforms_generator)
             .expect("Failed to process the geometry path");
-
-        // 統計
-        /*
-        {
-            let mapped = atomic_buffer.read().unwrap();
-            info!("Buffer: {:?}", mapped);
-        }
-        */
 
         // ライティングパス
         let uniforms_generator = || {
@@ -107,12 +110,14 @@ fn main() -> AnyResult<()> {
         app.draw_lighting(&mut lighting_buffer, uniforms_generator)
             .expect("Failed to process the lighting path");
 
-        // 合成
+        // コンポジション
         let mut target = display.draw();
         target.clear_color(0.0, 0.0, 0.0, 0.0);
         app.draw_composition(
             &mut target,
             uniform! {
+                env_prev_luminance: &prev_luminance,
+                env_next_luminance: &next_luminance,
                 env_screen_matrix: screen_matrix,
                 tex_unlit: &buffer_refs.out_albedo,
                 tex_lighting: &buffer_refs.lighting,
@@ -120,80 +125,5 @@ fn main() -> AnyResult<()> {
         )
         .expect("Failed to process the composition path");
         target.finish().expect("Failed to finish drawing display");
-
-        // ウィンドウイベント
-        let next_frame = now + Duration::from_micros(16_666 / 2);
-        *control_flow = ControlFlow::WaitUntil(next_frame);
-        match ev {
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => {
-                    *control_flow = ControlFlow::Exit;
-                    return;
-                }
-                _ => return,
-            },
-            _ => (),
-        }
     });
-}
-
-fn intialize_window() -> (EventLoop<()>, Display) {
-    let event_loop = EventLoop::new();
-    let wb = WindowBuilder::new()
-        .with_resizable(false)
-        .with_inner_size(PhysicalSize::new(1280, 720));
-    let cb = ContextBuilder::new();
-    let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
-    info!(
-        "Supported OpenGL version: {}",
-        display.get_opengl_version_string()
-    );
-
-    (event_loop, display)
-}
-
-fn initialize_buffers(display: &Display) -> AnyResult<Buffers> {
-    let out_albedo = Texture2d::empty_with_format(
-        display,
-        UncompressedFloatFormat::F32F32F32F32,
-        MipmapsOption::NoMipmap,
-        1280,
-        720,
-    )?;
-    let out_position = Texture2d::empty_with_format(
-        display,
-        UncompressedFloatFormat::F32F32F32F32,
-        MipmapsOption::NoMipmap,
-        1280,
-        720,
-    )?;
-    let out_world_normal = Texture2d::empty_with_format(
-        display,
-        UncompressedFloatFormat::F32F32F32F32,
-        MipmapsOption::NoMipmap,
-        1280,
-        720,
-    )?;
-    let lighting = Texture2d::empty_with_format(
-        display,
-        UncompressedFloatFormat::F32F32F32F32,
-        MipmapsOption::NoMipmap,
-        1280,
-        720,
-    )?;
-    let depth = DepthTexture2d::empty_with_format(
-        display,
-        DepthFormat::F32,
-        MipmapsOption::NoMipmap,
-        1280,
-        720,
-    )?;
-
-    Ok(Buffers {
-        out_albedo,
-        out_position,
-        out_world_normal,
-        lighting,
-        depth,
-    })
 }
