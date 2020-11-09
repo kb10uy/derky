@@ -44,22 +44,12 @@ fn main() -> Result<()> {
     let mut lighting_buffer =
         SimpleFrameBuffer::with_depth_buffer(&display, &buffer_refs.lighting, &buffer_refs.depth)?;
 
-    let mut prev_luminances = Vec::with_capacity(8);
-    let mut next_luminances = Vec::with_capacity(8);
-    for _ in 0..8 {
-        prev_luminances.push(Buffer::new(
-            &display,
-            &0u32,
-            BufferType::AtomicCounterBuffer,
-            BufferMode::Dynamic,
-        )?);
-        next_luminances.push(Buffer::new(
-            &display,
-            &0u32,
-            BufferType::AtomicCounterBuffer,
-            BufferMode::Dynamic,
-        )?);
-    }
+    let mut next_luminance = Buffer::new(
+        &display,
+        &0u32,
+        BufferType::AtomicCounterBuffer,
+        BufferMode::Dynamic,
+    )?;
 
     info!("Starting event loop");
     let frame_time = Duration::from_nanos(33_333_333);
@@ -85,23 +75,19 @@ fn main() -> Result<()> {
 
         let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
 
-        // Luminance リセット
-        for i in 0..8 {
-            prev_luminances[i].write(&next_luminances[i].read().unwrap());
-            next_luminances[i].write(&0);
-        }
-
-        let prev_luminance_value: Vec<_> = prev_luminances
-            .iter_mut()
-            .map(|lum| *lum.map_read())
-            .collect();
+        let prev_luminance = {
+            let mut mapped = next_luminance.map();
+            let prev_value = *mapped;
+            *mapped = 0;
+            prev_value
+        } as f32;
 
         // tick 処理
         app.tick(delta);
         info!(
             "Delta: {:.2}ms, Luminance total: {:?}",
             delta.as_secs_f64() * 1000.0,
-            prev_luminance_value
+            prev_luminance
         );
 
         // ジオメトリパス
@@ -130,14 +116,8 @@ fn main() -> Result<()> {
         app.draw_composition(
             &mut target,
             uniform! {
-                luma_next_0: &next_luminances[0],
-                luma_next_1: &next_luminances[1],
-                luma_next_2: &next_luminances[2],
-                luma_next_3: &next_luminances[3],
-                luma_next_4: &next_luminances[4],
-                luma_next_5: &next_luminances[5],
-                luma_next_6: &next_luminances[6],
-                luma_next_7: &next_luminances[7],
+                next_luminance: &next_luminance,
+                prev_luminance: prev_luminance,
                 env_screen_matrix: screen_matrix,
                 tex_unlit: &buffer_refs.out_albedo,
                 tex_lighting: &buffer_refs.lighting,
