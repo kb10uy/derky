@@ -4,7 +4,10 @@ mod environment;
 mod material;
 mod model;
 
-use crate::rendering::{load_program, load_screen_program, UniformsSet};
+use crate::rendering::{
+    load_program, load_screen_program, CompositionVertex, UniformsSet, SCREEN_QUAD_INDICES,
+    SCREEN_QUAD_VERTICES,
+};
 use environment::Environment;
 use material::Material;
 use model::Model;
@@ -18,7 +21,6 @@ use std::{
 use anyhow::{format_err, Result};
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
-    implement_vertex,
     index::PrimitiveType,
     uniform,
     uniforms::Uniforms,
@@ -28,34 +30,6 @@ use glium::{
 use log::info;
 use ultraviolet::{Mat4, Vec3};
 use weavy_crab::Parser;
-
-#[derive(Debug, Clone, Copy)]
-struct CompositionVertex {
-    position: [f32; 4],
-    uv: [f32; 2],
-}
-implement_vertex!(CompositionVertex, position, uv);
-
-const SCREEN_QUAD_VERTICES: [CompositionVertex; 4] = [
-    CompositionVertex {
-        position: [-1.0, 1.0, 0.0, 1.0],
-        uv: [0.0, 0.0],
-    },
-    CompositionVertex {
-        position: [1.0, 1.0, 0.0, 1.0],
-        uv: [1.0, 0.0],
-    },
-    CompositionVertex {
-        position: [1.0, -1.0, 0.0, 1.0],
-        uv: [1.0, 1.0],
-    },
-    CompositionVertex {
-        position: [-1.0, -1.0, 0.0, 1.0],
-        uv: [0.0, 1.0],
-    },
-];
-
-const SCREEN_QUAD_INDICES: [u16; 6] = [0, 3, 1, 1, 3, 2];
 
 pub struct Application {
     environment: Environment,

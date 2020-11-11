@@ -9,12 +9,41 @@ use anyhow::Result;
 use glium::{
     backend::Facade,
     glutin::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder},
+    implement_vertex,
     texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
     uniforms::{EmptyUniforms, UniformValue, Uniforms},
     Display, Program,
 };
 use log::error;
 use log::info;
+
+pub const SCREEN_QUAD_VERTICES: [CompositionVertex; 4] = [
+    CompositionVertex {
+        position: [-1.0, 1.0, 0.0, 1.0],
+        uv: [0.0, 0.0],
+    },
+    CompositionVertex {
+        position: [1.0, 1.0, 0.0, 1.0],
+        uv: [1.0, 0.0],
+    },
+    CompositionVertex {
+        position: [1.0, -1.0, 0.0, 1.0],
+        uv: [1.0, 1.0],
+    },
+    CompositionVertex {
+        position: [-1.0, -1.0, 0.0, 1.0],
+        uv: [0.0, 1.0],
+    },
+];
+
+pub const SCREEN_QUAD_INDICES: [u16; 6] = [0, 3, 1, 1, 3, 2];
+
+#[derive(Debug, Clone, Copy)]
+pub struct CompositionVertex {
+    pub position: [f32; 4],
+    pub uv: [f32; 2],
+}
+implement_vertex!(CompositionVertex, position, uv);
 
 /// 各種バッファの運搬用
 pub struct Buffers {
@@ -23,6 +52,8 @@ pub struct Buffers {
     pub out_world_normal: Texture2d,
     pub lighting: Texture2d,
     pub depth: DepthTexture2d,
+    pub luminance_first: Texture2d,
+    pub luminance_second: Texture2d,
 }
 
 /// UniformsStorage を結合するやつ。
@@ -140,6 +171,20 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
         1280,
         720,
     )?;
+    let luminance_first = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1024,
+        1024,
+    )?;
+    let luminance_second = Texture2d::empty_with_format(
+        display,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+        1024,
+        1024,
+    )?;
 
     Ok(Buffers {
         out_albedo,
@@ -147,5 +192,7 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
         out_world_normal,
         lighting,
         depth,
+        luminance_first,
+        luminance_second,
     })
 }

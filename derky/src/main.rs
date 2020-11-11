@@ -2,7 +2,7 @@ mod application;
 mod rendering;
 
 use application::Application;
-use rendering::Buffers;
+use rendering::{load_screen_program, Buffers, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -13,7 +13,8 @@ use glium::{
         event::{Event, WindowEvent},
         event_loop::ControlFlow,
     },
-    uniform, Surface,
+    index::PrimitiveType,
+    uniform, DrawParameters, IndexBuffer, Surface, VertexBuffer,
 };
 use log::info;
 use ultraviolet::Mat4;
@@ -38,6 +39,13 @@ fn main() -> Result<()> {
     )?;
     let mut lighting_buffer =
         SimpleFrameBuffer::with_depth_buffer(&display, &buffer_refs.lighting, &buffer_refs.depth)?;
+    let mut luminance_buffers = vec![
+        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_first)?,
+        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_second)?,
+    ];
+    let mut luminance_textures = vec![&buffer_refs.luminance_first, &buffer_refs.luminance_second];
+
+    let luminance_scaler_program = load_screen_program(&display, "deferred_scale_step")?;
 
     let mut next_luminance = Buffer::new(
         &display,
@@ -104,6 +112,65 @@ fn main() -> Result<()> {
         lighting_buffer.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
         app.draw_lighting(&mut lighting_buffer, uniforms_generator)
             .expect("Failed to process the lighting path");
+
+        /*
+        // 平均輝度を求めるやーつ
+        let mut vertices_source = SCREEN_QUAD_VERTICES.clone();
+        let indices =
+            IndexBuffer::new(&display, PrimitiveType::TrianglesList, &SCREEN_QUAD_INDICES).unwrap();
+        let params = DrawParameters::default();
+
+        // 初回コピー
+        let vertices = VertexBuffer::new(&display, &vertices_source).unwrap();
+        let uniforms = uniform! {
+            env_screen_matrix: screen_matrix,
+            scale_prev_texture: &buffer_refs.out_albedo,
+            scale_prev_size: (1280f32, 720f32),
+        };
+        luminance_buffers[0]
+            .draw(
+                &vertices,
+                &indices,
+                &luminance_scaler_program,
+                &uniforms,
+                &params,
+            )
+            .unwrap();
+
+        // 1px になるまで繰り返す
+        let mut prev_scale = 1024f32;
+        while prev_scale > 1.0 {
+            vertices_source.iter_mut().for_each(|v| {
+                v.position[0] = (v.position[0] + 1.0) / 4.0 - 1.0;
+                v.position[1] = (v.position[1] - 1.0) / 4.0 + 1.0;
+            });
+            let vertices =
+                VertexBuffer::new(&display, &vertices_source).expect("Invalid vertex buffer");
+            let uniforms = uniform! {
+                env_screen_matrix: screen_matrix,
+                scale_prev_texture: luminance_textures[0],
+                scale_prev_size: (prev_scale, prev_scale),
+            };
+
+            luminance_buffers[1]
+                .draw(
+                    &vertices,
+                    &indices,
+                    &luminance_scaler_program,
+                    &uniforms,
+                    &params,
+                )
+                .expect("Failed to calculate luminance");
+
+            luminance_buffers.swap(0, 1);
+            luminance_textures.swap(0, 1);
+            vertices_source.iter_mut().for_each(|v| {
+                v.uv[0] /= 4.0;
+                v.uv[1] /= 4.0;
+            });
+            prev_scale /= 4.0;
+        }
+        */
 
         // コンポジション
         let mut target = display.draw();

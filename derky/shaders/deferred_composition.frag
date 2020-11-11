@@ -49,6 +49,9 @@ void main() {
     vec3 raw_color = unlit_color * light_color;
     float raw_luminance = luminance(raw_color);
 
+    // color = vec4(unlit_color, 1.0);
+    // return;
+
     /*
     // 次フレーム用の輝度
     uint luma_index = uint(min(raw_luminance * 8.0, 7.99999));
