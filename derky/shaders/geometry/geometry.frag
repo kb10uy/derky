@@ -14,6 +14,10 @@ out vec4 out_world_normal;
 void main() {
     vec4 albedo = texture(material_albedo, v_uv);
 
+    if (albedo.a < 0.5) {
+        discard;
+    }
+
     out_albedo = vec4(albedo);
     out_position = vec4(v_position, 1.0);
     out_world_normal = vec4(normalize(v_normal), 0.0);

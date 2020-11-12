@@ -12,7 +12,6 @@ use environment::Environment;
 use material::Material;
 use model::Model;
 use std::{
-    f32::consts::PI,
     fs::File,
     path::{Path, PathBuf},
     time::Duration,
@@ -50,12 +49,11 @@ impl Application {
         let model = Application::load_model(display, "objects/Natsuki.obj")?;
         let model_room = Application::load_model(display, "objects/Room.obj")?;
 
-        let program_geometry = load_program(display, "deferred_geometry")?;
-        let program_ambient_lighting = load_screen_program(display, "deferred_ambient_lighting")?;
-        let program_directional_lighting =
-            load_screen_program(display, "deferred_directional_lighting")?;
-        let program_point_lighting = load_screen_program(display, "deferred_point_lighting")?;
-        let program_composition = load_screen_program(display, "deferred_composition")?;
+        let program_geometry = load_program(display, "geometry/geometry")?;
+        let program_ambient_lighting = load_screen_program(display, "lighting/ambient")?;
+        let program_directional_lighting = load_screen_program(display, "lighting/directional")?;
+        let program_point_lighting = load_screen_program(display, "lighting/point")?;
+        let program_composition = load_screen_program(display, "composition/composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =
@@ -91,9 +89,7 @@ impl Application {
         geometry_buffer: &mut MultiOutputFrameBuffer,
         generate_uniforms: UG,
     ) -> Result<()> {
-        let angle = self.elapsed_time.as_secs_f32() * PI;
         let room_matrix: [[f32; 4]; 4] = Mat4::identity().into();
-        let model_matrix: [[f32; 4]; 4] = Mat4::from_rotation_y(angle).into();
 
         let params = DrawParameters {
             depth: Depth {
@@ -178,23 +174,19 @@ impl Application {
         )?;
 
         // Directional
-        /*
-        let light_direction: [f32; 3] = Vec3::new(0.1, -0.9, -0.4).normalized().into();
-        let light_color: [f32; 3] = Vec3::new(1.0, 1.0, 1.0).into();
-        let uniforms_set = UniformsSet::new(generate_uniforms())
-            .add(self.environment.get_unforms())
-            .add(uniform! {
-                light_directional_direction: light_direction,
-                light_directional_color: light_color,
-            });
-        lighting_buffer.draw(
-            &self.vertices_screen,
-            &self.indices_screen,
-            &self.program_directional_lighting,
-            &uniforms_set,
-            &params,
-        )?;
-        */
+        let directional_lights = self.environment.directional_lights();
+        for directional_light in directional_lights {
+            let uniforms_set = UniformsSet::new(generate_uniforms())
+                .add(self.environment.get_unforms())
+                .add(directional_light.to_uniforms());
+            lighting_buffer.draw(
+                &self.vertices_screen,
+                &self.indices_screen,
+                &self.program_directional_lighting,
+                &uniforms_set,
+                &params,
+            )?;
+        }
 
         // Point
         let point_lights = self.environment.point_lights();
@@ -215,12 +207,15 @@ impl Application {
     }
 
     pub fn draw_composition(&mut self, frame: &mut Frame, uniforms: impl Uniforms) -> Result<()> {
+        let params = DrawParameters {
+            ..Default::default()
+        };
         frame.draw(
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_composition,
             &uniforms,
-            &Default::default(),
+            &params,
         )?;
 
         Ok(())

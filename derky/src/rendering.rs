@@ -6,16 +6,18 @@ use std::{
 };
 
 use anyhow::Result;
+use exr::prelude::rgba_image::*;
 use glium::{
     backend::Facade,
     glutin::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder},
     implement_vertex,
-    texture::{DepthFormat, DepthTexture2d, MipmapsOption, Texture2d, UncompressedFloatFormat},
+    texture::{
+        DepthFormat, DepthTexture2d, MipmapsOption, RawImage2d, Texture2d, UncompressedFloatFormat,
+    },
     uniforms::{EmptyUniforms, UniformValue, Uniforms},
     Display, Program,
 };
-use log::error;
-use log::info;
+use log::{error, info};
 
 pub const SCREEN_QUAD_VERTICES: [CompositionVertex; 4] = [
     CompositionVertex {
@@ -101,7 +103,7 @@ pub fn load_program(display: &impl Facade, basename: &str) -> Result<Program> {
 
 /// シェーダーを読み込む。
 pub fn load_screen_program(display: &impl Facade, basename: &str) -> Result<Program> {
-    let mut vertex_file = BufReader::new(File::open("shaders/deferred_screen.vert")?);
+    let mut vertex_file = BufReader::new(File::open("shaders/screen.vert")?);
     let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
 
     let mut vertex_shader = String::with_capacity(1024);
@@ -195,4 +197,36 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
         luminance_first,
         luminance_second,
     })
+}
+
+pub fn test_exr(facade: &impl Facade, filename: &str) -> Result<Texture2d> {
+    let (_, (image, w, h)) = ImageInfo::read_pixels_from_file(
+        filename,
+        read_options::high(),
+        |info| {
+            let w = info.resolution.width();
+            let h = info.resolution.height();
+            let image = vec![0f32; w * h * 4];
+            (image, w, h)
+        },
+        |(image, w, _), pos, pixel| {
+            let base_index = (pos.y() * *w + pos.x()) * 4;
+            let pixel_array: [f32; 4] = pixel.into();
+            for i in 0..4 {
+                image[base_index + i] = pixel_array[i];
+            }
+        },
+    )?;
+
+    info!("OpenEXR texture loaded: {}, {}", w, h);
+
+    let raw_image = RawImage2d::from_raw_rgba_reversed(&image[..], (w as u32, h as u32));
+    let texture = Texture2d::with_format(
+        facade,
+        raw_image,
+        UncompressedFloatFormat::F32F32F32F32,
+        MipmapsOption::NoMipmap,
+    )?;
+
+    Ok(texture)
 }

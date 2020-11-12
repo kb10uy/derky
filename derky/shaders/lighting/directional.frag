@@ -3,7 +3,7 @@
 uniform sampler2D g_position;
 uniform sampler2D g_normal;
 uniform vec3 light_directional_direction;
-uniform vec3 light_directional_color;
+uniform vec3 light_directional_intensity;
 uniform vec3 env_camera_position;
 
 smooth in vec2 v_uv;
@@ -24,5 +24,5 @@ void main() {
     float specular_intensity = max(0, pow(dot(-reflection, camera_ray), 20.0));
     vec3 specular_color = vec3(specular_intensity, specular_intensity, specular_intensity);
 
-    color = vec4((light_directional_color * diffuse_luminance) + specular_color, 1.0);
+    color = vec4((light_directional_intensity * diffuse_luminance) + specular_color, 1.0);
 }

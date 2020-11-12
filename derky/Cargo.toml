@@ -21,6 +21,9 @@ version = "0.7"
 [dependencies.image]
 version = "0.23"
 
+[dependencies.exr]
+version = "0.9"
+
 [dependencies.itertools]
 version = "0.9"
 

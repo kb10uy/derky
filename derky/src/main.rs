@@ -2,19 +2,25 @@ mod application;
 mod rendering;
 
 use application::Application;
-use rendering::{load_screen_program, Buffers, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES};
+use rendering::{
+    // load_screen_program,
+    // test_exr,
+    Buffers,
+    // SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES,
+};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use glium::{
-    buffer::{Buffer, BufferMode, BufferType},
+    // buffer::{Buffer, BufferMode, BufferType},
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     glutin::{
         event::{Event, WindowEvent},
         event_loop::ControlFlow,
     },
-    index::PrimitiveType,
-    uniform, DrawParameters, IndexBuffer, Surface, VertexBuffer,
+    uniform,
+    Surface,
+    // index::PrimitiveType, DrawParameters, IndexBuffer, VertexBuffer,
 };
 use log::info;
 use ultraviolet::Mat4;
@@ -39,20 +45,23 @@ fn main() -> Result<()> {
     )?;
     let mut lighting_buffer =
         SimpleFrameBuffer::with_depth_buffer(&display, &buffer_refs.lighting, &buffer_refs.depth)?;
-    let mut luminance_buffers = vec![
-        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_first)?,
-        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_second)?,
-    ];
-    let mut luminance_textures = vec![&buffer_refs.luminance_first, &buffer_refs.luminance_second];
 
+    /*
+    // シェーダーセットアップ
+    let exr_texture = test_exr(&display, "objects/background.exr")?;
     let luminance_scaler_program = load_screen_program(&display, "deferred_scale_step")?;
-
     let mut next_luminance = Buffer::new(
         &display,
         &0u32,
         BufferType::AtomicCounterBuffer,
         BufferMode::Dynamic,
     )?;
+    let mut luminance_buffers = vec![
+        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_first)?,
+        SimpleFrameBuffer::new(&display, &buffer_refs.luminance_second)?,
+    ];
+    let mut luminance_textures = vec![&buffer_refs.luminance_first, &buffer_refs.luminance_second];
+    */
 
     info!("Starting event loop");
     let frame_time = Duration::from_nanos(33_333_333);
@@ -78,20 +87,18 @@ fn main() -> Result<()> {
 
         let screen_matrix: [[f32; 4]; 4] = Mat4::identity().into();
 
+        /*
         let prev_luminance = {
             let mut mapped = next_luminance.map();
             let prev_value = *mapped;
             *mapped = 0;
             prev_value
         } as f32;
+        */
 
         // tick 処理
         app.tick(delta);
-        info!(
-            "Delta: {:.2}ms, Luminance total: {:?}",
-            delta.as_secs_f64() * 1000.0,
-            prev_luminance
-        );
+        info!("Delta: {:.2}ms", delta.as_secs_f32() * 1000.0);
 
         // ジオメトリパス
         let uniforms_generator = || {
@@ -178,10 +185,11 @@ fn main() -> Result<()> {
         app.draw_composition(
             &mut target,
             uniform! {
-                next_luminance: &next_luminance,
-                prev_luminance: prev_luminance,
+                // next_luminance: &next_luminance,
+                // prev_luminance: prev_luminance,
                 env_screen_matrix: screen_matrix,
                 tex_unlit: &buffer_refs.out_albedo,
+                // tex_unlit: &exr_texture,
                 tex_lighting: &buffer_refs.lighting,
             },
         )

@@ -49,8 +49,7 @@ void main() {
     vec3 raw_color = unlit_color * light_color;
     float raw_luminance = luminance(raw_color);
 
-    // color = vec4(unlit_color, 1.0);
-    // return;
+    // raw_color = unlit_color;
 
     /*
     // 次フレーム用の輝度
@@ -75,46 +74,26 @@ void main() {
     }
     */
 
-    // 今フレームの露出
-    // yuv_color.x *= prev_luminance_average * 0.18;
-    // yuv_color.x = pow(yuv_color.x, 1.0 / 2.2);
-    float prev_luminance_average = 2.0; // prev_luminance / (1280.0 * 720.0 * 8.0);
+    float prev_luminance_average = 0.18;
     vec3 exposure_color = raw_color * (0.18 / prev_luminance_average);
+    vec3 final_color = exposure_color;
 
     // オレオレ謎関数 No.1
-    // out_color = atan(5 * (out_color - 0.4)) / 2.6 + 0.42;
+    // vec3 final_color = exposure_color;
+    // final_color = atan(5.0 * (final_color - 0.4)) / 2.6 + 0.42;
+    // final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
 
     // exp
     // float k = log(1.0 / 255.0) / 7.0;
-    // out_color = 1.0 - exp(k * out_color);
+    // final_color = 1.0 - exp(k * final_color);
 
     // Reinhard
-    // out_color /= (1.0 + out_color);
+    // final_color /= (1.0 + final_color);
+    // final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
 
     // ACES Filmic
-    // out_color = vec3(aces_filmic(out_color.r), aces_filmic(out_color.g), aces_filmic(out_color.b));
-
-    vec3 final_color = raw_color;
-
-    if (v_uv.y < 0.25) {
-        // Raw
-        final_color = raw_color;
-    } else if (v_uv.y < 0.50) {
-        // Reinhard
-        final_color = exposure_color / (1.0 + exposure_color);
-        // ガンマ補正
-        final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
-    } else if (v_uv.y < 0.75) {
-        // ACES
-        final_color = vec3(aces_filmic(exposure_color.r), aces_filmic(exposure_color.g), aces_filmic(exposure_color.b));
-        // ガンマ補正
-        final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
-    } else {
-        // オレオレ #1
-        final_color = atan(5 * (exposure_color - 0.4)) / 2.6 + 0.42;
-        // ガンマ補正
-        final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
-    }
+    // final_color = vec3(aces_filmic(final_color.r), aces_filmic(final_color.g), aces_filmic(final_color.b));
+    // final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
 
     color = vec4(final_color, 1.0);
 }

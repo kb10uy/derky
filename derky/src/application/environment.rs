@@ -61,11 +61,14 @@ pub struct Environment {
     projection_matrix: Mat4,
     elapsed_time: Duration,
     ambient_light: AmbientLight,
+    directional_lights: Vec<DirectionalLight>,
     point_lights: Vec<PointLight>,
 }
 
 impl Environment {
     pub fn new() -> Environment {
+        let ambient_light = AmbientLight(Vec3::new(0.0, 0.0, 0.0));
+        let directional_lights = vec![];
         let point_lights = vec![
             PointLight {
                 position: Vec3::new(-0.5, 0.5, 0.0),
@@ -84,11 +87,13 @@ impl Environment {
                 intensity: Vec3::new(10.0, 10.0, 10.0),
             },
         ];
+
         Environment {
             camera_position: Vec3::new(0.0, 0.0, 0.0),
             projection_matrix: perspective_gl(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
             elapsed_time: Default::default(),
-            ambient_light: AmbientLight(Vec3::new(0.0, 0.0, 0.0)),
+            ambient_light,
+            directional_lights,
             point_lights,
         }
     }
@@ -131,5 +136,9 @@ impl Environment {
 
     pub fn point_lights(&self) -> &[PointLight] {
         &self.point_lights
+    }
+
+    pub fn directional_lights(&self) -> &[DirectionalLight] {
+        &self.directional_lights
     }
 }
