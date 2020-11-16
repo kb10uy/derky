@@ -126,7 +126,7 @@ pub fn intialize_window() -> (EventLoop<()>, Display) {
     let wb = WindowBuilder::new()
         .with_resizable(false)
         .with_inner_size(PhysicalSize::new(1280, 720));
-    let cb = ContextBuilder::new();
+    let cb = ContextBuilder::new().with_srgb(false);
     let display = Display::new(wb, cb, &event_loop).expect("Failed to create display");
     info!(
         "Supported OpenGL version: {}",

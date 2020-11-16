@@ -110,6 +110,9 @@ impl Environment {
         let light2 = &mut self.point_lights[1];
         light2.position.x = (time * -3.0).cos() * 0.2;
         light2.position.z = (time * -3.0).sin() * 0.2;
+
+        let light3 = &mut self.point_lights[2];
+        light3.intensity = Vec3::new(10.0, 10.0, 10.0) * ((time * 3.14).sin() + 1.0);
     }
 
     /// カメラ位置を設定する。
