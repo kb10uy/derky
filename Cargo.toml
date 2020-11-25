@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "derky",
+  "derky-d3d11",
   "weavy_crab",
 ]

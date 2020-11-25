@@ -76,7 +76,8 @@ void main() {
         prev_luminance
         / (WINDOW_WIDTH * WINDOW_HEIGHT / pow(LUMINANCE_SAMPLING_SPARSENESS, 2.0))
         / 8.0;
-    prev_luminance_average = 18;
+    // prev_luminance_average = 0.18;
+
 
     // 調整
     vec3 exposure_color = raw_color * (0.18 / prev_luminance_average);

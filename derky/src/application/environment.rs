@@ -1,8 +1,10 @@
 //! シーン内の情報(ライトなど)を格納する `Environment` 関連のモジュール。
 
+use crate::rendering::load_exr_texture;
 use std::time::Duration;
 
-use glium::{uniform, uniforms::Uniforms};
+use anyhow::Result;
+use glium::{backend::Facade, uniform, uniforms::Uniforms, Texture2d};
 use ultraviolet::{projection::perspective_gl, Mat4, Vec3};
 
 /// アンビエントライト
@@ -14,6 +16,19 @@ impl AmbientLight {
         let intensity: [f32; 3] = self.0.into();
         uniform! {
             light_ambient_intensity: intensity,
+        }
+    }
+}
+
+// IBL ライト
+#[derive(Debug)]
+pub struct ImageLight(pub Texture2d, pub f32);
+
+impl ImageLight {
+    pub fn to_uniforms<'a>(&'a self) -> impl Uniforms + 'a {
+        uniform! {
+            light_image_source: &self.0,
+            light_image_intensity: self.1,
         }
     }
 }
@@ -55,19 +70,21 @@ impl PointLight {
 }
 
 /// シーンの状態を表す。
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Environment {
     camera_position: Vec3,
     projection_matrix: Mat4,
     elapsed_time: Duration,
     ambient_light: AmbientLight,
+    image_light: ImageLight,
     directional_lights: Vec<DirectionalLight>,
     point_lights: Vec<PointLight>,
 }
 
 impl Environment {
-    pub fn new() -> Environment {
+    pub fn new(facade: &impl Facade) -> Result<Environment> {
         let ambient_light = AmbientLight(Vec3::new(0.0, 0.0, 0.0));
+        let image_light = ImageLight(load_exr_texture(facade, "objects/background.exr")?, 0.5);
         let directional_lights = vec![];
         let point_lights = vec![
             PointLight {
@@ -82,20 +99,23 @@ impl Environment {
                 position: Vec3::new(0.0, 1.9, 0.0),
                 intensity: Vec3::new(20.0, 20.0, 20.0),
             },
+            /*
             PointLight {
                 position: Vec3::new(0.0, 0.0, 1.9),
                 intensity: Vec3::new(10.0, 10.0, 10.0),
             },
+            */
         ];
 
-        Environment {
+        Ok(Environment {
             camera_position: Vec3::new(0.0, 0.0, 0.0),
             projection_matrix: perspective_gl(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
             elapsed_time: Default::default(),
             ambient_light,
+            image_light,
             directional_lights,
             point_lights,
-        }
+        })
     }
 
     pub fn tick(&mut self, delta: Duration) {
@@ -112,7 +132,11 @@ impl Environment {
         light2.position.z = (time * -3.0).sin() * 0.2;
 
         let light3 = &mut self.point_lights[2];
-        light3.intensity = Vec3::new(10.0, 10.0, 10.0) * ((time * 3.14).sin() + 1.0);
+        light3.intensity = if (time * 3.14).sin() > 0.0 {
+            Vec3::new(10.0, 10.0, 10.0)
+        } else {
+            Vec3::new(0.0, 0.0, 0.0)
+        };
     }
 
     /// カメラ位置を設定する。
@@ -135,6 +159,10 @@ impl Environment {
 
     pub fn ambient_light(&self) -> AmbientLight {
         self.ambient_light
+    }
+
+    pub fn image_light(&self) -> &ImageLight {
+        &self.image_light
     }
 
     pub fn point_lights(&self) -> &[PointLight] {

@@ -35,6 +35,7 @@ pub struct Application {
     elapsed_time: Duration,
     program_geometry: Program,
     program_ambient_lighting: Program,
+    program_image_lighting: Program,
     program_directional_lighting: Program,
     program_point_lighting: Program,
     program_composition: Program,
@@ -51,6 +52,7 @@ impl Application {
 
         let program_geometry = load_program(display, "geometry/geometry")?;
         let program_ambient_lighting = load_screen_program(display, "lighting/ambient")?;
+        let program_image_lighting = load_screen_program(display, "lighting/image")?;
         let program_directional_lighting = load_screen_program(display, "lighting/directional")?;
         let program_point_lighting = load_screen_program(display, "lighting/point")?;
         let program_composition = load_screen_program(display, "composition/composition")?;
@@ -59,14 +61,15 @@ impl Application {
         let indices_screen =
             IndexBuffer::new(display, PrimitiveType::TrianglesList, &SCREEN_QUAD_INDICES)?;
 
-        let mut environment = Environment::new();
-        environment.set_camera(Vec3::new(0.0, 1.0, 2.0));
+        let mut environment = Environment::new(display)?;
+        environment.set_camera(Vec3::new(0.0, 1.0, 1.0));
 
         Ok(Application {
             environment,
             elapsed_time: Duration::new(0, 0),
             program_geometry,
             program_ambient_lighting,
+            program_image_lighting,
             program_directional_lighting,
             program_point_lighting,
             program_composition,
@@ -169,6 +172,18 @@ impl Application {
             &self.vertices_screen,
             &self.indices_screen,
             &self.program_ambient_lighting,
+            &uniforms_set,
+            &params,
+        )?;
+
+        // Image-Based
+        let uniforms_set = UniformsSet::new(generate_uniforms())
+            .add(self.environment.get_unforms())
+            .add(self.environment.image_light().to_uniforms());
+        lighting_buffer.draw(
+            &self.vertices_screen,
+            &self.indices_screen,
+            &self.program_image_lighting,
             &uniforms_set,
             &params,
         )?;

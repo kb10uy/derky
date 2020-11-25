@@ -1,0 +1,26 @@
+[package]
+name = "derky-d3d11"
+version = "0.1.0"
+authors = ["kb10uy <kb10uy@kb10uy.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.anyhow]
+version = "1.0"
+
+[dependencies.log]
+version = "0.4"
+
+[dependencies.pretty_env_logger]
+version = "0.4"
+
+[dependencies.winapi]
+version = "0.3"
+features = ["d3d11"]
+
+[dependencies.winit]
+version = "0.23"
+
+[dependencies.ultraviolet]
+version = "0.7"

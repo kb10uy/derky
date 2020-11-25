@@ -199,7 +199,7 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
     })
 }
 
-pub fn test_exr(facade: &impl Facade, filename: &str) -> Result<Texture2d> {
+pub fn load_exr_texture(facade: &impl Facade, filename: &str) -> Result<Texture2d> {
     let (_, (image, w, h)) = ImageInfo::read_pixels_from_file(
         filename,
         read_options::high(),

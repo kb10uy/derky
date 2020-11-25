@@ -411,6 +411,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "derky-d3d11"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "pretty_env_logger",
+ "ultraviolet",
+ "winapi 0.3.9",
+ "winit",
+]
+
+[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

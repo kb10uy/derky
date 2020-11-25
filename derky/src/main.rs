@@ -84,7 +84,7 @@ fn main() -> Result<()> {
         info!(
             "Delta: {:.2}ms, lumi: {:.4}",
             delta.as_secs_f32() * 1000.0,
-            prev_luminance
+            prev_luminance / 14400.0 / 8.0
         );
 
         // ジオメトリパス
