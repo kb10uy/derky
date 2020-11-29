@@ -42,7 +42,7 @@ impl Context {
                 null!(d3d11::ID3D11DepthStencilView),
             );
             self.immediate_context
-                .ClearRenderTargetView(rtv, &[0.0, 1.0, 0.0, 1.0]);
+                .ClearRenderTargetView(rtv, &[0.0, 0.0, 0.0, 1.0]);
         }
     }
 
@@ -94,6 +94,18 @@ impl Context {
         unsafe {
             self.immediate_context
                 .VSSetConstantBuffers(slot, 1, &constant_buffer.as_ptr());
+        }
+    }
+
+    pub fn set_viewport(&self, viewport: &d3d11::D3D11_VIEWPORT) {
+        unsafe {
+            self.immediate_context.RSSetViewports(1, viewport);
+        }
+    }
+
+    pub fn draw(&self, vertices: usize) {
+        unsafe {
+            self.immediate_context.Draw(vertices as u32, 0);
         }
     }
 }
@@ -186,4 +198,15 @@ pub fn create_d3d11(
             render_target_view,
         },
     ))
+}
+
+pub const fn create_viewport(dimension: (u32, u32)) -> d3d11::D3D11_VIEWPORT {
+    d3d11::D3D11_VIEWPORT {
+        TopLeftX: 0.0,
+        TopLeftY: 0.0,
+        Width: dimension.0 as f32,
+        Height: dimension.1 as f32,
+        MinDepth: 0.0,
+        MaxDepth: 0.0,
+    }
 }

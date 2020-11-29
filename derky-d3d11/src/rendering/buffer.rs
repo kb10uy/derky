@@ -50,7 +50,7 @@ pub struct Vertex {
 /// `Vertex` の InputLayout
 pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
     d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "POSITION".as_ptr() as *const i8,
+        SemanticName: "POSITION\0".as_ptr() as *const i8,
         SemanticIndex: 0,
         Format: dxgiformat::DXGI_FORMAT_R32G32B32_FLOAT,
         InputSlot: 0,
@@ -59,7 +59,7 @@ pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
         InstanceDataStepRate: 0,
     },
     d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "NORMAL".as_ptr() as *const i8,
+        SemanticName: "NORMAL\0".as_ptr() as *const i8,
         SemanticIndex: 0,
         Format: dxgiformat::DXGI_FORMAT_R32G32B32_FLOAT,
         InputSlot: 0,
@@ -68,7 +68,7 @@ pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
         InstanceDataStepRate: 0,
     },
     d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "TEXCOORD0".as_ptr() as *const i8,
+        SemanticName: "TEXCOORD\0".as_ptr() as *const i8,
         SemanticIndex: 0,
         Format: dxgiformat::DXGI_FORMAT_R32G32_FLOAT,
         InputSlot: 0,
@@ -80,19 +80,19 @@ pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
 
 pub const SCREEN_QUAD_VERTICES: [Vertex; 3] = [
     Vertex {
-        position: Vec3::new(-1.0, 1.0, 0.0),
+        position: Vec3::new(-1.0, 1.0, 0.5),
         normal: Vec3::new(0.0, 0.0, -1.0),
         uv: Vec2::new(0.0, 0.0),
     },
     Vertex {
-        position: Vec3::new(-1.0, -1.0, 0.0),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-        uv: Vec2::new(0.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(1.0, 1.0, 0.0),
+        position: Vec3::new(1.0, 1.0, 0.5),
         normal: Vec3::new(0.0, 0.0, -1.0),
         uv: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        position: Vec3::new(-1.0, -1.0, 0.5),
+        normal: Vec3::new(0.0, 0.0, -1.0),
+        uv: Vec2::new(0.0, 1.0),
     },
 ];
 
@@ -119,6 +119,43 @@ pub fn create_input_layout(
     Ok(input_layout)
 }
 
+pub fn create_vertex_buffer(
+    device: &ComPtr<d3d11::ID3D11Device>,
+    vertices: &[Vertex],
+) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
+    let buffer = unsafe {
+        let desc = d3d11::D3D11_BUFFER_DESC {
+            ByteWidth: (size_of::<Vertex>() * vertices.len()) as u32,
+            Usage: d3d11::D3D11_USAGE_DEFAULT,
+            BindFlags: d3d11::D3D11_BIND_VERTEX_BUFFER,
+            CPUAccessFlags: 0,
+            MiscFlags: 0,
+            StructureByteStride: 0,
+        };
+
+        let initial_data = d3d11::D3D11_SUBRESOURCE_DATA {
+            pSysMem: vertices.as_ptr() as *const c_void,
+            SysMemPitch: 0,
+            SysMemSlicePitch: 0,
+        };
+
+        let mut buffer = null!(d3d11::ID3D11Buffer);
+        device
+            .CreateBuffer(
+                &desc,
+                &initial_data,
+                &mut buffer as *mut *mut d3d11::ID3D11Buffer,
+            )
+            .err()
+            .context("Failed to create vertex buffer")?;
+        comptrize!(buffer);
+        buffer
+    };
+
+    Ok(buffer)
+}
+
+/// 型付き Constant Buffer
 pub struct ConstantBuffer<T> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
     modifiable: bool,

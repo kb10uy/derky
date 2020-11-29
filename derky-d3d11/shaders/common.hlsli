@@ -2,8 +2,8 @@
 #define DERKY_COMMON
 
 struct VsInput {
-    float3 position: POSITION;
-    float3 normal: NORMAL;
+    float3 position: POSITION0;
+    float3 normal: NORMAL0;
     float2 uv: TEXCOORD0;
 };
 

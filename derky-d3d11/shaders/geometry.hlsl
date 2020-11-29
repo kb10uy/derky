@@ -9,7 +9,7 @@ cbuffer Matrices : register(b0) {
 PsInput vertex_main(VsInput input) {
     PsInput output;
     // output.position = mul(projection, mul(view, mul(model, float4(input.position, 1.0))));
-    output.position = mul(mul(mul(float4(input.position, 1.0), model), view), projection);
+    output.position = float4(input.position, 1.0);// mul(mul(mul(float4(input.position, 1.0), model), view), projection);
     output.uv = input.uv;
     return output;
 }
