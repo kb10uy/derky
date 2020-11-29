@@ -1,12 +1,15 @@
-mod d3d11;
+mod rendering;
 
-use crate::d3d11::D3d11;
+use crate::rendering::{
+    create_d3d11, create_input_layout, load_pixel_shader, load_vertex_shader, Texture,
+    SCREEN_QUAD_VERTICES, VERTEX_LAYOUT,
+};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, StartCause, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::windows::WindowExtWindows,
     window::WindowBuilder,
@@ -21,8 +24,16 @@ fn main() -> Result<()> {
     let window = window_builder.build(&event_loop)?;
     let window_handle = window.hwnd();
 
-    let d3d11 = D3d11::create_d3d11(window_handle, (1280, 720))?;
+    // ------------------------------------------------------------------------
+    let (device, context) = create_d3d11(window_handle, (1280, 720))?;
 
+    let (vs, vs_binary) = load_vertex_shader(&device, "derky-d3d11/shaders/geometry.vs.bin")?;
+    let ps = load_pixel_shader(&device, "derky-d3d11/shaders/geometry.ps.bin")?;
+    let input_layout = create_input_layout(&device, &VERTEX_LAYOUT, &vs_binary)?;
+
+    let texture = Texture::load_hdr(&device, "assets/background.exr")?;
+
+    // ------------------------------------------------------------------------
     let frame_time = Duration::from_nanos(33_333_333);
     let mut last_at = Instant::now();
     event_loop.run(move |ev, _, flow| {
@@ -45,8 +56,9 @@ fn main() -> Result<()> {
         }
 
         let start = Instant::now();
-        d3d11.clear();
-        d3d11.present();
+        context.clear();
+        context.set_shaders(&input_layout, &vs, &ps);
+        context.present();
         let process_time = start.elapsed();
 
         // TODO: 描画処理

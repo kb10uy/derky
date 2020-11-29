@@ -47,15 +47,15 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> Result<Application> {
-        let model = Application::load_model(display, "objects/Natsuki.obj")?;
-        let model_room = Application::load_model(display, "objects/Room.obj")?;
+        let model = Application::load_model(display, "assets/Natsuki.obj")?;
+        let model_room = Application::load_model(display, "assets/Room.obj")?;
 
-        let program_geometry = load_program(display, "geometry/geometry")?;
-        let program_ambient_lighting = load_screen_program(display, "lighting/ambient")?;
-        let program_image_lighting = load_screen_program(display, "lighting/image")?;
-        let program_directional_lighting = load_screen_program(display, "lighting/directional")?;
-        let program_point_lighting = load_screen_program(display, "lighting/point")?;
-        let program_composition = load_screen_program(display, "composition/composition")?;
+        let program_geometry = load_program(display, "derky/geometry/geometry")?;
+        let program_ambient_lighting = load_screen_program(display, "derky/lighting/ambient")?;
+        let program_image_lighting = load_screen_program(display, "derky/lighting/image")?;
+        let program_directional_lighting = load_screen_program(display, "derky/lighting/directional")?;
+        let program_point_lighting = load_screen_program(display, "derky/lighting/point")?;
+        let program_composition = load_screen_program(display, "derky/composition/composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =

@@ -415,6 +415,8 @@ name = "derky-d3d11"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "exr",
+ "image",
  "log",
  "pretty_env_logger",
  "ultraviolet",

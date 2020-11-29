@@ -1,2 +1,3 @@
 /target
-/derky/objects/*
+/assets/*
+*.bin
