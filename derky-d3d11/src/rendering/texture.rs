@@ -1,9 +1,17 @@
+//! テクスチャリソース関連の型
+
 use crate::{
     comptrize, null,
     rendering::{ComPtr, HresultErrorExt},
 };
 
-use std::{ffi::c_void, fs::File, io::BufReader, mem::zeroed, path::Path};
+use std::{
+    ffi::c_void,
+    fs::File,
+    io::BufReader,
+    mem::{size_of, zeroed},
+    path::Path,
+};
 
 use anyhow::{Context, Result};
 use exr::prelude::rgba_image::*;
@@ -13,6 +21,7 @@ use winapi::{
     um::{d3d11, d3dcommon},
 };
 
+/// `ID3D11Texture2D`, `ID3D11ShaderResourceView`, `ID3D11SamplerState` を保持する。
 pub struct Texture {
     pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11ShaderResourceView>,
@@ -37,8 +46,7 @@ impl Texture {
         let texture = unsafe {
             Texture::create_texture(
                 device,
-                resized_image.as_ptr() as *const c_void,
-                1,
+                &resized_image,
                 dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT,
                 (new_width, new_height),
             )?
@@ -80,8 +88,7 @@ impl Texture {
         let texture = unsafe {
             Texture::create_texture(
                 device,
-                image.as_ptr() as *const c_void,
-                4,
+                &image,
                 dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT,
                 (w as u32, h as u32),
             )?
@@ -96,6 +103,7 @@ impl Texture {
         })
     }
 
+    /// 画像サイズを 2 の べき乗に拡張する。
     fn roundup_dimensions((w, h): (u32, u32)) -> (u32, u32) {
         fn round(x: u32) -> u32 {
             if x.count_ones() == 1 {
@@ -108,10 +116,10 @@ impl Texture {
         (round(w), round(h))
     }
 
-    unsafe fn create_texture(
+    /// `ID3D11Texture2D` を作成する。
+    unsafe fn create_texture<T>(
         device: &ComPtr<d3d11::ID3D11Device>,
-        buffer: *const c_void,
-        element_size: u32,
+        buffer: &[T],
         format: dxgiformat::DXGI_FORMAT,
         (width, height): (u32, u32),
     ) -> Result<ComPtr<d3d11::ID3D11Texture2D>> {
@@ -131,10 +139,11 @@ impl Texture {
             MiscFlags: 0,
         };
 
+        let channels = Texture::get_channels(format);
         let initial = d3d11::D3D11_SUBRESOURCE_DATA {
-            pSysMem: buffer,
-            SysMemPitch: width * element_size * 4,
-            SysMemSlicePitch: width * height * element_size * 4,
+            pSysMem: buffer.as_ptr() as *const c_void,
+            SysMemPitch: size_of::<T>() as u32 * width * channels,
+            SysMemSlicePitch: size_of::<T>() as u32 * width * height * channels,
         };
 
         let mut texture = null!(d3d11::ID3D11Texture2D);
@@ -151,6 +160,7 @@ impl Texture {
         Ok(texture)
     }
 
+    /// `ID3D11ShaderResourceView` を作成する。
     unsafe fn create_view(
         device: &ComPtr<d3d11::ID3D11Device>,
         texture_ptr: *mut d3d11::ID3D11Texture2D,
@@ -176,6 +186,7 @@ impl Texture {
         Ok(view)
     }
 
+    /// `ID3D11SamplerState` を作成する。
     unsafe fn create_sampler(
         device: &ComPtr<d3d11::ID3D11Device>,
     ) -> Result<ComPtr<d3d11::ID3D11SamplerState>> {
@@ -202,5 +213,22 @@ impl Texture {
 
         comptrize!(sampler);
         Ok(sampler)
+    }
+
+    /// `DXGI_FORMAT` からチャンネル数を判定する。
+    fn get_channels(format: dxgiformat::DXGI_FORMAT) -> u32 {
+        match format {
+            dxgiformat::DXGI_FORMAT_R8G8_UINT
+            | dxgiformat::DXGI_FORMAT_R16G16_UINT
+            | dxgiformat::DXGI_FORMAT_R32G32_UINT
+            | dxgiformat::DXGI_FORMAT_R16G16_FLOAT
+            | dxgiformat::DXGI_FORMAT_R32G32_FLOAT => 2,
+            dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT
+            | dxgiformat::DXGI_FORMAT_R16G16B16A16_UINT
+            | dxgiformat::DXGI_FORMAT_R32G32B32A32_UINT
+            | dxgiformat::DXGI_FORMAT_R16G16B16A16_FLOAT
+            | dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT => 4,
+            _ => todo!("Cannot judge channel count"),
+        }
     }
 }

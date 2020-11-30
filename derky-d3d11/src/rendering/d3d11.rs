@@ -1,6 +1,8 @@
+//! Direct3D 11 の直接的な操作。
+
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, HresultErrorExt, Topology, Vertex},
+    rendering::{ComPtr, HresultErrorExt, IndexBuffer, IndexInteger, Topology, Vertex},
 };
 
 use std::{ffi::c_void, mem::size_of};
@@ -12,6 +14,7 @@ use winapi::{
     Interface,
 };
 
+/// Immediate Context などを保持する。
 pub struct Context {
     pub(crate) immediate_context: ComPtr<d3d11::ID3D11DeviceContext>,
     pub(crate) swapchain: ComPtr<dxgi::IDXGISwapChain>,
@@ -27,12 +30,14 @@ impl Drop for Context {
 }
 
 impl Context {
+    /// 画面を表示する。
     pub fn present(&self) {
         unsafe {
             self.swapchain.Present(0, 0);
         }
     }
 
+    /// 画面を消去する。
     pub fn clear(&self) {
         unsafe {
             let rtv = self.render_target_view.as_ptr();
@@ -46,6 +51,7 @@ impl Context {
         }
     }
 
+    /// シェーダーをセットする。
     pub fn set_shaders(
         &self,
         input_layout: &ComPtr<d3d11::ID3D11InputLayout>,
@@ -68,9 +74,11 @@ impl Context {
         }
     }
 
-    pub fn set_vertex_buffer(
+    /// Vertex Buffer, Index Buffer をセットする。
+    pub fn set_vertices<T: IndexInteger>(
         &self,
         vertex_buffer: &ComPtr<d3d11::ID3D11Buffer>,
+        index_buffer: &IndexBuffer<T>,
         topology: Topology,
     ) {
         unsafe {
@@ -81,11 +89,17 @@ impl Context {
                 &(size_of::<Vertex>() as u32),
                 &0,
             );
+            self.immediate_context.IASetIndexBuffer(
+                index_buffer.buffer.as_ptr(),
+                T::dxgi_format(),
+                0,
+            );
             self.immediate_context
                 .IASetPrimitiveTopology(topology.to_d3d11());
         }
     }
 
+    /// Vertex Shader の Constant Buffer をセットする。
     pub fn set_constant_buffer_vertex(
         &self,
         slot: u32,
@@ -97,19 +111,28 @@ impl Context {
         }
     }
 
+    /// ビューポートをセットする。
     pub fn set_viewport(&self, viewport: &d3d11::D3D11_VIEWPORT) {
         unsafe {
             self.immediate_context.RSSetViewports(1, viewport);
         }
     }
 
+    /// セットされている Vertex Bufferで描画する。
     pub fn draw(&self, vertices: usize) {
         unsafe {
             self.immediate_context.Draw(vertices as u32, 0);
         }
     }
+
+    pub fn draw_with_indices(&self, indices: usize) {
+        unsafe {
+            self.immediate_context.DrawIndexed(indices as u32, 0, 0);
+        }
+    }
 }
 
+/// Direct3D 11 を初期化する。
 pub fn create_d3d11(
     window_handle: *mut c_void,
     dimension: (u32, u32),
@@ -165,9 +188,9 @@ pub fn create_d3d11(
     comptrize!(device, immediate_context, swapchain);
 
     // Back buffer
-    let mut back_buffer = null!(d3d11::ID3D11Texture2D);
     let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
     unsafe {
+        let mut back_buffer = null!(d3d11::ID3D11Texture2D);
         swapchain
             .GetBuffer(
                 0,
@@ -186,7 +209,7 @@ pub fn create_d3d11(
             .context("Failed to create render target view")?;
 
         comptrize!(back_buffer);
-        back_buffer.Release();
+        drop(back_buffer);
     }
     comptrize!(render_target_view);
 
@@ -200,6 +223,7 @@ pub fn create_d3d11(
     ))
 }
 
+/// 全面に描画する `D3D_VIEWPORT` を作成する。
 pub const fn create_viewport(dimension: (u32, u32)) -> d3d11::D3D11_VIEWPORT {
     d3d11::D3D11_VIEWPORT {
         TopLeftX: 0.0,

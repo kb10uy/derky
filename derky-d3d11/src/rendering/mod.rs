@@ -5,8 +5,8 @@ mod shader;
 mod texture;
 
 pub use buffer::{
-    create_input_layout, create_vertex_buffer, Topology, Vertex, SCREEN_QUAD_VERTICES,
-    VERTEX_LAYOUT,
+    create_input_layout, create_vertex_buffer, ConstantBuffer, IndexBuffer, IndexInteger, Topology,
+    Vertex, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES, VERTEX_LAYOUT,
 };
 pub use com_support::{ComPtr, HresultErrorExt};
 pub use d3d11::{create_d3d11, create_viewport, Context};

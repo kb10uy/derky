@@ -1,3 +1,5 @@
+//! Windows COM の型サポート
+
 use std::{ops::Deref, ptr::NonNull};
 
 use anyhow::{bail, Result};

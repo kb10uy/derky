@@ -2,7 +2,8 @@ mod rendering;
 
 use crate::rendering::{
     create_d3d11, create_input_layout, create_vertex_buffer, create_viewport, load_pixel_shader,
-    load_vertex_shader, Texture, Topology, SCREEN_QUAD_VERTICES, VERTEX_LAYOUT,
+    load_vertex_shader, IndexBuffer, Texture, Topology, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES,
+    VERTEX_LAYOUT,
 };
 use std::time::{Duration, Instant};
 
@@ -35,6 +36,7 @@ fn main() -> Result<()> {
     let ps = load_pixel_shader(&device, "derky-d3d11/shaders/geometry.ps.bin")?;
     let input_layout = create_input_layout(&device, &VERTEX_LAYOUT, &vs_binary)?;
     let vertices = create_vertex_buffer(&device, &SCREEN_QUAD_VERTICES)?;
+    let indices = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
 
     // let texture = Texture::load_hdr(&device, "assets/background.exr")?;
 
@@ -65,8 +67,8 @@ fn main() -> Result<()> {
         context.clear();
         context.set_viewport(&viewport);
         context.set_shaders(&input_layout, &vs, &ps);
-        context.set_vertex_buffer(&vertices, Topology::Triangles);
-        context.draw(SCREEN_QUAD_VERTICES.len());
+        context.set_vertices(&vertices, &indices, Topology::Triangles);
+        context.draw_with_indices(SCREEN_QUAD_INDICES.len());
         context.present();
         let process_time = start.elapsed();
 

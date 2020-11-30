@@ -1,19 +1,17 @@
+// 各種バッファ操作
+
 use crate::{
     comptrize, null,
     rendering::{ComPtr, Context, HresultErrorExt},
 };
 
-use std::{ffi::c_void, marker::PhantomData, mem::size_of, ops::Deref, ptr::NonNull, sync::Arc};
+use std::{ffi::c_void, marker::PhantomData, mem::size_of};
 
-use anyhow::{bail, format_err, Context as AnyhowContext, Result};
+use anyhow::{Context as AnyhowContext, Result};
 use ultraviolet::{Vec2, Vec3};
 use winapi::{
-    shared::{
-        dxgi, dxgiformat, dxgitype, minwindef,
-        winerror::{HRESULT, SUCCEEDED},
-    },
-    um::{d3d11, d3dcommon, unknwnbase::IUnknown},
-    Interface,
+    shared::dxgiformat,
+    um::{d3d11, d3dcommon},
 };
 
 /// Vertex Shader 入力のトポロジー
@@ -27,6 +25,7 @@ pub enum Topology {
 }
 
 impl Topology {
+    /// `D3D11_PRIMITIVE_TOPOLOGY_xxx` に変換する。
     pub fn to_d3d11(self) -> u32 {
         match self {
             Topology::Points => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST,
@@ -42,9 +41,9 @@ impl Topology {
 /// TODO: アラインメント調整が必要？
 #[derive(Debug, Clone)]
 pub struct Vertex {
-    position: Vec3,
-    normal: Vec3,
-    uv: Vec2,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub uv: Vec2,
 }
 
 /// `Vertex` の InputLayout
@@ -78,7 +77,8 @@ pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
     },
 ];
 
-pub const SCREEN_QUAD_VERTICES: [Vertex; 3] = [
+/// 画面全体のポリゴンの `Vertex` 配列
+pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
     Vertex {
         position: Vec3::new(-1.0, 1.0, 0.5),
         normal: Vec3::new(0.0, 0.0, -1.0),
@@ -94,8 +94,17 @@ pub const SCREEN_QUAD_VERTICES: [Vertex; 3] = [
         normal: Vec3::new(0.0, 0.0, -1.0),
         uv: Vec2::new(0.0, 1.0),
     },
+    Vertex {
+        position: Vec3::new(1.0, -1.0, 0.5),
+        normal: Vec3::new(0.0, 0.0, -1.0),
+        uv: Vec2::new(1.0, 1.0),
+    },
 ];
 
+/// 画面全体のポリゴンのインデックス配列
+pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
+
+/// Input Layout を作成する。
 pub fn create_input_layout(
     device: &ComPtr<d3d11::ID3D11Device>,
     layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
@@ -119,6 +128,7 @@ pub fn create_input_layout(
     Ok(input_layout)
 }
 
+/// Vertex Buffer を作成する。
 pub fn create_vertex_buffer(
     device: &ComPtr<d3d11::ID3D11Device>,
     vertices: &[Vertex],
@@ -141,6 +151,7 @@ pub struct ConstantBuffer<T> {
 }
 
 impl<T> ConstantBuffer<T> {
+    /// 書き換え可能な Constant Buffer を作成する。
     pub fn new(device: &ComPtr<d3d11::ID3D11Device>, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
@@ -158,8 +169,8 @@ impl<T> ConstantBuffer<T> {
         })
     }
 
-    pub fn update(&mut self, context: &Context, data: &T) {
-        // TODO: もしかして &mut じゃなくてもよくない？
+    /// 内容を更新する。
+    pub fn update(&self, context: &Context, data: &T) {
         unsafe {
             context.immediate_context.UpdateSubresource(
                 self.buffer.as_ptr() as *mut d3d11::ID3D11Resource,
@@ -177,12 +188,6 @@ impl<T> ConstantBuffer<T> {
 pub trait IndexInteger {
     /// DXGI_FORMAT 定数を返す。
     fn dxgi_format() -> dxgiformat::DXGI_FORMAT;
-}
-
-impl IndexInteger for u8 {
-    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
-        dxgiformat::DXGI_FORMAT_R16_UINT
-    }
 }
 
 impl IndexInteger for u16 {
@@ -204,6 +209,7 @@ pub struct IndexBuffer<T: IndexInteger> {
 }
 
 impl<T: IndexInteger> IndexBuffer<T> {
+    /// Index Buffer を作成する。
     pub fn new(device: &ComPtr<d3d11::ID3D11Device>, indices: &[T]) -> Result<IndexBuffer<T>> {
         let buffer = create_buffer(
             device,
@@ -240,7 +246,7 @@ fn create_buffer<T>(
     };
 
     let initial_data = d3d11::D3D11_SUBRESOURCE_DATA {
-        pSysMem: data.as_ptr() as *const T as *const c_void,
+        pSysMem: data.as_ptr() as *const c_void,
         SysMemPitch: 0,
         SysMemSlicePitch: 0,
     };

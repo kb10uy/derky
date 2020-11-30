@@ -1,3 +1,5 @@
+//! シェーダー関係の操作
+
 use crate::{
     comptrize, null,
     rendering::{ComPtr, HresultErrorExt},
@@ -8,6 +10,7 @@ use std::{ffi::c_void, fs::read, path::Path};
 use anyhow::{Context, Result};
 use winapi::um::d3d11;
 
+/// Vertex Shader バイナリを読み込む。
 pub fn load_vertex_shader(
     device: &ComPtr<d3d11::ID3D11Device>,
     filename: impl AsRef<Path>,
@@ -31,6 +34,7 @@ pub fn load_vertex_shader(
     Ok((shader, shader_binary.into_boxed_slice()))
 }
 
+/// Pixel Shader バイナリを読み込む。
 pub fn load_pixel_shader(
     device: &ComPtr<d3d11::ID3D11Device>,
     filename: impl AsRef<Path>,
