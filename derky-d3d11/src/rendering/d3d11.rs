@@ -5,7 +5,10 @@ use crate::{
     rendering::{ComPtr, HresultErrorExt, IndexBuffer, IndexInteger, Topology, Vertex},
 };
 
-use std::{ffi::c_void, mem::size_of};
+use std::{
+    ffi::c_void,
+    mem::{size_of, zeroed},
+};
 
 use anyhow::{Context as AnyhowContext, Result};
 use winapi::{
@@ -19,6 +22,7 @@ pub struct Context {
     pub(crate) immediate_context: ComPtr<d3d11::ID3D11DeviceContext>,
     pub(crate) swapchain: ComPtr<dxgi::IDXGISwapChain>,
     pub(crate) render_target_view: ComPtr<d3d11::ID3D11RenderTargetView>,
+    pub(crate) depth_stencil_view: ComPtr<d3d11::ID3D11DepthStencilView>,
 }
 
 impl Drop for Context {
@@ -41,13 +45,17 @@ impl Context {
     pub fn clear(&self) {
         unsafe {
             let rtv = self.render_target_view.as_ptr();
-            self.immediate_context.OMSetRenderTargets(
-                1,
-                &rtv,
-                null!(d3d11::ID3D11DepthStencilView),
-            );
+            let dsv = self.depth_stencil_view.as_ptr();
+            self.immediate_context
+                .OMSetRenderTargets(1, &rtv, self.depth_stencil_view.as_ptr());
             self.immediate_context
                 .ClearRenderTargetView(rtv, &[0.0, 0.0, 0.0, 1.0]);
+            self.immediate_context.ClearDepthStencilView(
+                dsv,
+                d3d11::D3D11_CLEAR_DEPTH | d3d11::D3D11_CLEAR_STENCIL,
+                1.0,
+                0,
+            );
         }
     }
 
@@ -118,13 +126,14 @@ impl Context {
         }
     }
 
-    /// セットされている Vertex Bufferで描画する。
+    /// セットされている Vertex Buffer で描画する。
     pub fn draw(&self, vertices: usize) {
         unsafe {
             self.immediate_context.Draw(vertices as u32, 0);
         }
     }
 
+    /// セットされている Vertex Buffer と Index Bufferで描画する。
     pub fn draw_with_indices(&self, indices: usize) {
         unsafe {
             self.immediate_context.DrawIndexed(indices as u32, 0, 0);
@@ -137,42 +146,41 @@ pub fn create_d3d11(
     window_handle: *mut c_void,
     dimension: (u32, u32),
 ) -> Result<(ComPtr<d3d11::ID3D11Device>, Context)> {
-    let flags = 0;
-    let feature_levels = [d3dcommon::D3D_FEATURE_LEVEL_11_1];
-
-    let swapchain_desc = dxgi::DXGI_SWAP_CHAIN_DESC {
-        BufferDesc: dxgitype::DXGI_MODE_DESC {
-            Width: dimension.0,
-            Height: dimension.1,
-            Format: dxgiformat::DXGI_FORMAT_R16G16B16A16_FLOAT,
-            RefreshRate: dxgitype::DXGI_RATIONAL {
-                Numerator: 0,
-                Denominator: 0,
+    // Device, Swapchain, Immediate Context
+    let (device, swapchain, immediate_context) = unsafe {
+        let swapchain_desc = dxgi::DXGI_SWAP_CHAIN_DESC {
+            BufferDesc: dxgitype::DXGI_MODE_DESC {
+                Width: dimension.0,
+                Height: dimension.1,
+                Format: dxgiformat::DXGI_FORMAT_R16G16B16A16_FLOAT,
+                RefreshRate: dxgitype::DXGI_RATIONAL {
+                    Numerator: 0,
+                    Denominator: 0,
+                },
+                Scaling: 0,
+                ScanlineOrdering: 0,
             },
-            Scaling: 0,
-            ScanlineOrdering: 0,
-        },
-        SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
-            Count: 1,
-            Quality: 0,
-        },
-        BufferUsage: dxgitype::DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        BufferCount: 1,
-        OutputWindow: window_handle as *mut winapi::shared::windef::HWND__,
-        Windowed: 1,
-        SwapEffect: dxgi::DXGI_SWAP_EFFECT_DISCARD,
-        Flags: 0,
-    };
-    let mut swapchain = null!(dxgi::IDXGISwapChain);
-    let mut device = null!(d3d11::ID3D11Device);
-    let mut immediate_context = null!(d3d11::ID3D11DeviceContext);
+            SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            BufferUsage: dxgitype::DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            BufferCount: 1,
+            OutputWindow: window_handle as *mut winapi::shared::windef::HWND__,
+            Windowed: 1,
+            SwapEffect: dxgi::DXGI_SWAP_EFFECT_DISCARD,
+            Flags: 0,
+        };
 
-    unsafe {
+        let mut swapchain = null!(dxgi::IDXGISwapChain);
+        let mut device = null!(d3d11::ID3D11Device);
+        let mut immediate_context = null!(d3d11::ID3D11DeviceContext);
+        let feature_levels = [d3dcommon::D3D_FEATURE_LEVEL_11_1];
         d3d11::D3D11CreateDeviceAndSwapChain(
             null!(dxgi::IDXGIAdapter),
             d3dcommon::D3D_DRIVER_TYPE_HARDWARE,
             null!(HINSTANCE__),
-            flags,
+            0,
             feature_levels.as_ptr(),
             feature_levels.len() as u32,
             d3d11::D3D11_SDK_VERSION,
@@ -184,13 +192,16 @@ pub fn create_d3d11(
         )
         .err()
         .context("Failed to create device and swapchain")?;
-    }
-    comptrize!(device, immediate_context, swapchain);
+
+        comptrize!(device, immediate_context, swapchain);
+        (device, swapchain, immediate_context)
+    };
 
     // Back buffer
-    let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
-    unsafe {
+    let render_target_view = unsafe {
+        let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
         let mut back_buffer = null!(d3d11::ID3D11Texture2D);
+
         swapchain
             .GetBuffer(
                 0,
@@ -208,10 +219,60 @@ pub fn create_d3d11(
             .err()
             .context("Failed to create render target view")?;
 
-        comptrize!(back_buffer);
+        comptrize!(back_buffer, render_target_view);
         drop(back_buffer);
-    }
-    comptrize!(render_target_view);
+        render_target_view
+    };
+
+    // Depth Stencil View
+    let depth_stencil_view = unsafe {
+        let desc = d3d11::D3D11_TEXTURE2D_DESC {
+            Width: dimension.0,
+            Height: dimension.1,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: dxgiformat::DXGI_FORMAT_D32_FLOAT,
+            SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            Usage: d3d11::D3D11_USAGE_DEFAULT,
+            BindFlags: d3d11::D3D11_BIND_DEPTH_STENCIL,
+            CPUAccessFlags: 0,
+            MiscFlags: 0,
+        };
+
+        let mut depth_stencil_texture = null!(d3d11::ID3D11Texture2D);
+        device
+            .CreateTexture2D(
+                &desc,
+                null!(d3d11::D3D11_SUBRESOURCE_DATA),
+                &mut depth_stencil_texture as *mut *mut d3d11::ID3D11Texture2D,
+            )
+            .err()
+            .context("Failed to create Depth Stencil Texture")?;
+        comptrize!(depth_stencil_texture);
+
+        let mut desc_ds = d3d11::D3D11_DEPTH_STENCIL_VIEW_DESC {
+            Format: dxgiformat::DXGI_FORMAT_D32_FLOAT,
+            ViewDimension: d3d11::D3D11_DSV_DIMENSION_TEXTURE2D,
+            Flags: 0,
+            u: zeroed(),
+        };
+        desc_ds.u.Texture2D_mut().MipSlice = 0;
+
+        let mut depth_stencil_view = null!(d3d11::ID3D11DepthStencilView);
+        device
+            .CreateDepthStencilView(
+                depth_stencil_texture.as_ptr() as *mut d3d11::ID3D11Resource,
+                &desc_ds,
+                &mut depth_stencil_view as *mut *mut d3d11::ID3D11DepthStencilView,
+            )
+            .err()
+            .context("Failed to create Depth Stencil View")?;
+        comptrize!(depth_stencil_view);
+        depth_stencil_view
+    };
 
     Ok((
         device,
@@ -219,6 +280,7 @@ pub fn create_d3d11(
             immediate_context,
             swapchain,
             render_target_view,
+            depth_stencil_view,
         },
     ))
 }

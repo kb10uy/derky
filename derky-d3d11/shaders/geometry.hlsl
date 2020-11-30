@@ -16,7 +16,7 @@ PsInput vertex_main(VsInput input) {
 
 PsOutput pixel_main(PsInput input) {
     PsOutput output;
-    output.color = float4(1.0, 1.0, 0.0, 1.0);
+    output.color = float4(input.uv, 0.0, 1.0);
     return output;
 }
 

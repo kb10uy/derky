@@ -30,3 +30,6 @@ version = "0.23"
 
 [dependencies.exr]
 version = "0.9"
+
+[dependencies.weavy_crab]
+path = "../weavy_crab"
