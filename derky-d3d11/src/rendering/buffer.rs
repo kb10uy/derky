@@ -123,36 +123,14 @@ pub fn create_vertex_buffer(
     device: &ComPtr<d3d11::ID3D11Device>,
     vertices: &[Vertex],
 ) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
-    let buffer = unsafe {
-        let desc = d3d11::D3D11_BUFFER_DESC {
-            ByteWidth: (size_of::<Vertex>() * vertices.len()) as u32,
-            Usage: d3d11::D3D11_USAGE_DEFAULT,
-            BindFlags: d3d11::D3D11_BIND_VERTEX_BUFFER,
-            CPUAccessFlags: 0,
-            MiscFlags: 0,
-            StructureByteStride: 0,
-        };
-
-        let initial_data = d3d11::D3D11_SUBRESOURCE_DATA {
-            pSysMem: vertices.as_ptr() as *const c_void,
-            SysMemPitch: 0,
-            SysMemSlicePitch: 0,
-        };
-
-        let mut buffer = null!(d3d11::ID3D11Buffer);
-        device
-            .CreateBuffer(
-                &desc,
-                &initial_data,
-                &mut buffer as *mut *mut d3d11::ID3D11Buffer,
-            )
-            .err()
-            .context("Failed to create vertex buffer")?;
-        comptrize!(buffer);
-        buffer
-    };
-
-    Ok(buffer)
+    create_buffer(
+        device,
+        vertices,
+        d3d11::D3D11_USAGE_DEFAULT,
+        d3d11::D3D11_BIND_VERTEX_BUFFER,
+        0,
+        "Vertex",
+    )
 }
 
 /// 型付き Constant Buffer
@@ -164,34 +142,14 @@ pub struct ConstantBuffer<T> {
 
 impl<T> ConstantBuffer<T> {
     pub fn new(device: &ComPtr<d3d11::ID3D11Device>, initial: &T) -> Result<ConstantBuffer<T>> {
-        let buffer = unsafe {
-            let desc = d3d11::D3D11_BUFFER_DESC {
-                ByteWidth: size_of::<T>() as u32,
-                Usage: d3d11::D3D11_USAGE_DYNAMIC,
-                BindFlags: d3d11::D3D11_BIND_CONSTANT_BUFFER,
-                CPUAccessFlags: d3d11::D3D11_CPU_ACCESS_WRITE,
-                MiscFlags: 0,
-                StructureByteStride: 0,
-            };
-
-            let initial_data = d3d11::D3D11_SUBRESOURCE_DATA {
-                pSysMem: initial as *const T as *const c_void,
-                SysMemPitch: 0,
-                SysMemSlicePitch: 0,
-            };
-
-            let mut buffer = null!(d3d11::ID3D11Buffer);
-            device
-                .CreateBuffer(
-                    &desc,
-                    &initial_data,
-                    &mut buffer as *mut *mut d3d11::ID3D11Buffer,
-                )
-                .err()
-                .context("Failed to create constant buffer")?;
-            comptrize!(buffer);
-            buffer
-        };
+        let buffer = create_buffer(
+            device,
+            &[initial],
+            d3d11::D3D11_USAGE_DYNAMIC,
+            d3d11::D3D11_BIND_CONSTANT_BUFFER,
+            d3d11::D3D11_CPU_ACCESS_WRITE,
+            "Constant",
+        )?;
 
         Ok(ConstantBuffer {
             buffer,
@@ -213,4 +171,91 @@ impl<T> ConstantBuffer<T> {
             );
         }
     }
+}
+
+/// Index Buffer の要素に使える型が実装する trait 。
+pub trait IndexInteger {
+    /// DXGI_FORMAT 定数を返す。
+    fn dxgi_format() -> dxgiformat::DXGI_FORMAT;
+}
+
+impl IndexInteger for u8 {
+    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
+        dxgiformat::DXGI_FORMAT_R16_UINT
+    }
+}
+
+impl IndexInteger for u16 {
+    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
+        dxgiformat::DXGI_FORMAT_R16_UINT
+    }
+}
+
+impl IndexInteger for u32 {
+    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
+        dxgiformat::DXGI_FORMAT_R32_UINT
+    }
+}
+
+/// 型付きの Index Buffer
+pub struct IndexBuffer<T: IndexInteger> {
+    pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
+    inner_type: PhantomData<fn() -> T>,
+}
+
+impl<T: IndexInteger> IndexBuffer<T> {
+    pub fn new(device: &ComPtr<d3d11::ID3D11Device>, indices: &[T]) -> Result<IndexBuffer<T>> {
+        let buffer = create_buffer(
+            device,
+            indices,
+            d3d11::D3D11_USAGE_DEFAULT,
+            d3d11::D3D11_BIND_INDEX_BUFFER,
+            0,
+            "Index",
+        )?;
+
+        Ok(IndexBuffer {
+            buffer,
+            inner_type: Default::default(),
+        })
+    }
+}
+
+/// `ID3D11Buffer` を作成する。
+fn create_buffer<T>(
+    device: &ComPtr<d3d11::ID3D11Device>,
+    data: &[T],
+    usage: d3d11::D3D11_USAGE,
+    bind: d3d11::D3D11_BIND_FLAG,
+    cpu_access: d3d11::D3D11_CPU_ACCESS_FLAG,
+    type_string: &'static str,
+) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
+    let desc = d3d11::D3D11_BUFFER_DESC {
+        ByteWidth: (data.len() * size_of::<T>()) as u32,
+        Usage: usage,
+        BindFlags: bind,
+        CPUAccessFlags: cpu_access,
+        MiscFlags: 0,
+        StructureByteStride: 0,
+    };
+
+    let initial_data = d3d11::D3D11_SUBRESOURCE_DATA {
+        pSysMem: data.as_ptr() as *const T as *const c_void,
+        SysMemPitch: 0,
+        SysMemSlicePitch: 0,
+    };
+
+    let mut buffer = null!(d3d11::ID3D11Buffer);
+    unsafe {
+        device
+            .CreateBuffer(
+                &desc,
+                &initial_data,
+                &mut buffer as *mut *mut d3d11::ID3D11Buffer,
+            )
+            .err()
+            .context(format!("Failed to create {} Buffer", type_string))?;
+    }
+    comptrize!(buffer);
+    Ok(buffer)
 }

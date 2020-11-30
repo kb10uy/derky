@@ -39,6 +39,7 @@ impl Texture {
                 device,
                 resized_image.as_ptr() as *const c_void,
                 1,
+                dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT,
                 (new_width, new_height),
             )?
         };
@@ -81,6 +82,7 @@ impl Texture {
                 device,
                 image.as_ptr() as *const c_void,
                 4,
+                dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT,
                 (w as u32, h as u32),
             )?
         };
@@ -110,6 +112,7 @@ impl Texture {
         device: &ComPtr<d3d11::ID3D11Device>,
         buffer: *const c_void,
         element_size: u32,
+        format: dxgiformat::DXGI_FORMAT,
         (width, height): (u32, u32),
     ) -> Result<ComPtr<d3d11::ID3D11Texture2D>> {
         let desc = d3d11::D3D11_TEXTURE2D_DESC {
@@ -117,7 +120,7 @@ impl Texture {
             Height: height,
             MipLevels: 1,
             ArraySize: 1,
-            Format: dxgiformat::DXGI_FORMAT_R8G8B8A8_UNORM,
+            Format: format,
             SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
                 Count: 1,
                 Quality: 0,
