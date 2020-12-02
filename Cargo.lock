@@ -427,7 +427,6 @@ dependencies = [
  "anyhow",
  "derky",
  "glium",
- "image",
  "itertools",
  "lazy_static",
  "log",

@@ -1,13 +1,10 @@
 //! 描画用モデルに関係するモジュール。
 
 use super::material::Material;
-use std::{
-    fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use derky::texture::{load_ldr_image, RgbaImageData};
 use glium::{
     backend::Facade,
     implement_vertex,
@@ -15,7 +12,6 @@ use glium::{
     texture::{RawImage2d, Texture2d},
     IndexBuffer, VertexBuffer,
 };
-use image::{io::Reader as ImageReader, Rgba, RgbaImage};
 use itertools::Itertools;
 use log::info;
 use ultraviolet::{Vec3, Vec4};
@@ -126,33 +122,30 @@ impl Model {
             let image = if let Some(path) = original_material.diffuse_map() {
                 let mut filename = PathBuf::from(base_path.as_ref());
                 filename.push(path);
-
-                info!("Loading texture {:?}", filename);
-                let file = File::open(filename)?;
-                let reader = ImageReader::new(BufReader::new(file)).with_guessed_format()?;
-                reader.decode()?.into_rgba()
+                load_ldr_image(filename)?
             } else {
                 let color = original_material
                     .diffuse_color()
                     .unwrap_or(Vec3::new(1.0, 1.0, 1.0));
                 info!("Creating dummy image: {:?}", color);
 
-                let mut image = RgbaImage::new(1, 1);
-                image.put_pixel(
-                    0,
-                    0,
-                    Rgba([
+                RgbaImageData::new(
+                    &[
                         (color.x * 255.0) as u8,
                         (color.y * 255.0) as u8,
                         (color.z * 255.0) as u8,
                         255,
-                    ]),
-                );
-                image
+                    ],
+                    1,
+                    1,
+                )?
             };
 
             let dimensions = image.dimensions();
-            let raw_image = RawImage2d::from_raw_rgba(image.into_raw(), dimensions);
+            let raw_image = RawImage2d::from_raw_rgba(
+                image.into_data().into_vec(),
+                (dimensions.0 as u32, dimensions.1 as u32),
+            );
             let texture = Texture2d::new(facade, raw_image)?;
 
             let material = Material::Diffuse {

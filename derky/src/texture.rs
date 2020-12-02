@@ -2,18 +2,18 @@
 
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use exr::prelude::rgba_image::*;
 use log::{debug, info};
 
 /// Represents a RGBA image data with raw element array and dimensions.
-pub struct RgbaImageData<T> {
+pub struct RgbaImageData<T: Copy> {
     data: Box<[T]>,
     width: usize,
     height: usize,
 }
 
-impl<T> RgbaImageData<T> {
+impl<T: Copy> RgbaImageData<T> {
     /// Gets the dimension of this image.
     pub fn dimensions(&self) -> (usize, usize) {
         (self.width, self.height)
@@ -27,6 +27,24 @@ impl<T> RgbaImageData<T> {
     /// Consumes this instance and gets the raw data of this image.
     pub fn into_data(self) -> Box<[T]> {
         self.data
+    }
+
+    /// Creates a new image from raw data.
+    pub fn new(data: &[T], width: usize, height: usize) -> Result<RgbaImageData<T>> {
+        let length = data.len();
+        match length {
+            x if x % 4 != 0 => bail!("The length of data is not multiple of 4"),
+            x if x / 4 < width * height => bail!("The data is not enough for the dimensions"),
+            _ => {
+                let mut new_data = Vec::with_capacity(length);
+                new_data.copy_from_slice(data);
+                Ok(RgbaImageData {
+                    data: new_data.into_boxed_slice(),
+                    width,
+                    height,
+                })
+            }
+        }
     }
 }
 
