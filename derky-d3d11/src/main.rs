@@ -2,9 +2,9 @@ mod application;
 mod rendering;
 
 use crate::rendering::{
-    create_d3d11, create_input_layout, create_vertex_buffer, create_viewport, load_pixel_shader,
-    load_vertex_shader, ConstantBuffer, IndexBuffer, Texture, Topology, SCREEN_QUAD_INDICES,
-    SCREEN_QUAD_VERTICES, VERTEX_LAYOUT,
+    create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
+    ConstantBuffer, IndexBuffer, Topology, VertexBuffer, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES,
+    VERTEX_INPUT_LAYOUT,
 };
 use std::time::{Duration, Instant};
 
@@ -43,20 +43,19 @@ fn main() -> Result<()> {
 
     let (vs, vs_binary) = load_vertex_shader(&device, "derky-d3d11/shaders/geometry.vso")?;
     let ps = load_pixel_shader(&device, "derky-d3d11/shaders/geometry.pso")?;
-    let input_layout = create_input_layout(&device, &VERTEX_LAYOUT, &vs_binary)?;
-    let vertices = create_vertex_buffer(&device, &SCREEN_QUAD_VERTICES)?;
+    let input_layout = create_input_layout(&device, &VERTEX_INPUT_LAYOUT, &vs_binary)?;
+    let vertices = VertexBuffer::new(&device, &SCREEN_QUAD_VERTICES)?;
     let indices = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
 
-    let matrices = Matrices {
-        model: Mat4::from_translation(Vec3::new(0.0, 0.0, 2.0)).into(),
-        view: Mat4::identity().into(),
-        // なぜ near と far が逆になっているのかは謎
-        projection: perspective_wgpu_dx(60f32.to_radians(), 16.0 / 9.0, 1024.0, 0.1).into(),
-    };
-
-    let constants = ConstantBuffer::new(&device, &matrices)?;
-
-    // let texture = Texture::load_hdr(&device, "assets/background.exr")?;
+    let constants = ConstantBuffer::new(
+        &device,
+        &Matrices {
+            model: Mat4::from_translation(Vec3::new(0.0, 0.0, 2.0)).into(),
+            view: Mat4::identity().into(),
+            // なぜ near と far が逆になっているのかは謎
+            projection: perspective_wgpu_dx(60f32.to_radians(), 16.0 / 9.0, 1024.0, 0.1).into(),
+        },
+    )?;
 
     // ------------------------------------------------------------------------
     info!("Starting event loop");

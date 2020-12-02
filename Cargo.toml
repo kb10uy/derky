@@ -5,3 +5,8 @@ members = [
   "derky-d3d11",
   "weavy_crab",
 ]
+
+# Profile overrides
+
+[profile.release]
+lto = true

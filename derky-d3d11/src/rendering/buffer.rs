@@ -2,17 +2,30 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, Context, HresultErrorExt},
+    rendering::{ComPtr, Context, D3d11Vertex, HresultErrorExt},
 };
 
 use std::{ffi::c_void, marker::PhantomData, mem::size_of, slice::from_ref};
 
 use anyhow::{Context as AnyhowContext, Result};
-use ultraviolet::{Vec2, Vec3};
 use winapi::{
     shared::dxgiformat,
     um::{d3d11, d3dcommon},
 };
+
+/// Index Buffer の要素に使える型が実装する trait 。
+pub trait IndexInteger {
+    /// DXGI_FORMAT 定数を返す。
+    const DXGI_FORMAT: dxgiformat::DXGI_FORMAT;
+}
+
+impl IndexInteger for u16 {
+    const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R16_UINT;
+}
+
+impl IndexInteger for u32 {
+    const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R32_UINT;
+}
 
 /// Vertex Shader 入力のトポロジー
 #[derive(Debug, Clone, Copy)]
@@ -37,110 +50,29 @@ impl Topology {
     }
 }
 
-/// 頂点
-/// TODO: アラインメント調整が必要？
-#[derive(Debug, Clone)]
-pub struct Vertex {
-    pub position: Vec3,
-    pub normal: Vec3,
-    pub uv: Vec2,
+/// Vertex Buffer
+pub struct VertexBuffer<V: D3d11Vertex> {
+    pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
+    inner_type: PhantomData<fn() -> V>,
 }
 
-/// `Vertex` の InputLayout
-pub const VERTEX_LAYOUT: [d3d11::D3D11_INPUT_ELEMENT_DESC; 3] = [
-    d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "POSITION\0".as_ptr() as *const i8,
-        SemanticIndex: 0,
-        Format: dxgiformat::DXGI_FORMAT_R32G32B32_FLOAT,
-        InputSlot: 0,
-        AlignedByteOffset: 0,
-        InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
-        InstanceDataStepRate: 0,
-    },
-    d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "NORMAL\0".as_ptr() as *const i8,
-        SemanticIndex: 0,
-        Format: dxgiformat::DXGI_FORMAT_R32G32B32_FLOAT,
-        InputSlot: 0,
-        AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-        InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
-        InstanceDataStepRate: 0,
-    },
-    d3d11::D3D11_INPUT_ELEMENT_DESC {
-        SemanticName: "TEXCOORD\0".as_ptr() as *const i8,
-        SemanticIndex: 0,
-        Format: dxgiformat::DXGI_FORMAT_R32G32_FLOAT,
-        InputSlot: 0,
-        AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-        InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
-        InstanceDataStepRate: 0,
-    },
-];
+impl<V: D3d11Vertex> VertexBuffer<V> {
+    /// Vertex Buffer を作成する。
+    pub fn new(device: &ComPtr<d3d11::ID3D11Device>, vertices: &[V]) -> Result<VertexBuffer<V>> {
+        let buffer = create_buffer(
+            device,
+            vertices,
+            d3d11::D3D11_USAGE_DEFAULT,
+            d3d11::D3D11_BIND_VERTEX_BUFFER,
+            0,
+            "Vertex",
+        )?;
 
-/// 画面全体のポリゴンの `Vertex` 配列
-pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
-    Vertex {
-        position: Vec3::new(-1.0, 1.0, 0.5),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-        uv: Vec2::new(0.0, 0.0),
-    },
-    Vertex {
-        position: Vec3::new(1.0, 1.0, 0.5),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-        uv: Vec2::new(1.0, 0.0),
-    },
-    Vertex {
-        position: Vec3::new(-1.0, -1.0, 0.5),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-        uv: Vec2::new(0.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(1.0, -1.0, 0.5),
-        normal: Vec3::new(0.0, 0.0, -1.0),
-        uv: Vec2::new(1.0, 1.0),
-    },
-];
-
-/// 画面全体のポリゴンのインデックス配列
-pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
-
-/// Input Layout を作成する。
-pub fn create_input_layout(
-    device: &ComPtr<d3d11::ID3D11Device>,
-    layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
-    vertex_shader_binary: &[u8],
-) -> Result<ComPtr<d3d11::ID3D11InputLayout>> {
-    let input_layout = unsafe {
-        let mut input_layout = null!(d3d11::ID3D11InputLayout);
-        device
-            .CreateInputLayout(
-                layouts.as_ptr(),
-                layouts.len() as u32,
-                vertex_shader_binary.as_ptr() as *const c_void,
-                vertex_shader_binary.len(),
-                &mut input_layout as *mut *mut d3d11::ID3D11InputLayout,
-            )
-            .err()
-            .context("Failed to create input layout")?;
-        comptrize!(input_layout);
-        input_layout
-    };
-    Ok(input_layout)
-}
-
-/// Vertex Buffer を作成する。
-pub fn create_vertex_buffer(
-    device: &ComPtr<d3d11::ID3D11Device>,
-    vertices: &[Vertex],
-) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
-    create_buffer(
-        device,
-        vertices,
-        d3d11::D3D11_USAGE_DEFAULT,
-        d3d11::D3D11_BIND_VERTEX_BUFFER,
-        0,
-        "Vertex",
-    )
+        Ok(VertexBuffer {
+            buffer,
+            inner_type: Default::default(),
+        })
+    }
 }
 
 /// 型付き Constant Buffer
@@ -169,8 +101,32 @@ impl<T> ConstantBuffer<T> {
         })
     }
 
+    pub fn new_immutable(
+        device: &ComPtr<d3d11::ID3D11Device>,
+        initial: &T,
+    ) -> Result<ConstantBuffer<T>> {
+        let buffer = create_buffer(
+            device,
+            from_ref(initial),
+            d3d11::D3D11_USAGE_DYNAMIC,
+            d3d11::D3D11_BIND_CONSTANT_BUFFER,
+            d3d11::D3D11_CPU_ACCESS_WRITE,
+            "Constant",
+        )?;
+
+        Ok(ConstantBuffer {
+            buffer,
+            modifiable: false,
+            inner_type: Default::default(),
+        })
+    }
+
     /// 内容を更新する。
     pub fn update(&self, context: &Context, data: &T) {
+        if !self.modifiable {
+            return;
+        }
+
         unsafe {
             context.immediate_context.UpdateSubresource(
                 self.buffer.as_ptr() as *mut d3d11::ID3D11Resource,
@@ -181,24 +137,6 @@ impl<T> ConstantBuffer<T> {
                 0,
             );
         }
-    }
-}
-
-/// Index Buffer の要素に使える型が実装する trait 。
-pub trait IndexInteger {
-    /// DXGI_FORMAT 定数を返す。
-    fn dxgi_format() -> dxgiformat::DXGI_FORMAT;
-}
-
-impl IndexInteger for u16 {
-    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
-        dxgiformat::DXGI_FORMAT_R16_UINT
-    }
-}
-
-impl IndexInteger for u32 {
-    fn dxgi_format() -> dxgiformat::DXGI_FORMAT {
-        dxgiformat::DXGI_FORMAT_R32_UINT
     }
 }
 

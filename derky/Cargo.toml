@@ -22,14 +22,3 @@ features = ["png", "jpeg", "dxt"]
 
 [dependencies.exr]
 version = "0.9"
-
-# Profile overrides
-
-[profile.release]
-lto = true
-
-[profile.dev.package.image]
-opt-level = 3
-
-[profile.dev.package.exr]
-opt-level = 3

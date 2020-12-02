@@ -1,6 +1,6 @@
 //! Contains lights and environmental types.
 
-use ultraviolet::{Mat4, Vec2, Vec3, Vec4};
+use ultraviolet::{Mat4, Vec3};
 
 /// Represents an ambient light.
 #[derive(Debug, Clone, PartialEq)]

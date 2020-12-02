@@ -3,7 +3,8 @@
 use crate::{
     comptrize, null,
     rendering::{
-        ComPtr, ConstantBuffer, HresultErrorExt, IndexBuffer, IndexInteger, Topology, Vertex,
+        ComPtr, ConstantBuffer, D3d11Vertex, HresultErrorExt, IndexBuffer, IndexInteger, Topology,
+        VertexBuffer,
     },
 };
 
@@ -85,23 +86,23 @@ impl Context {
     }
 
     /// Vertex Buffer, Index Buffer をセットする。
-    pub fn set_vertices<T: IndexInteger>(
+    pub fn set_vertices<V: D3d11Vertex, I: IndexInteger>(
         &self,
-        vertex_buffer: &ComPtr<d3d11::ID3D11Buffer>,
-        index_buffer: &IndexBuffer<T>,
+        vertex_buffer: &VertexBuffer<V>,
+        index_buffer: &IndexBuffer<I>,
         topology: Topology,
     ) {
         unsafe {
             self.immediate_context.IASetVertexBuffers(
                 0,
                 1,
-                &vertex_buffer.as_ptr(),
-                &(size_of::<Vertex>() as u32),
+                &vertex_buffer.buffer.as_ptr(),
+                &(size_of::<V>() as u32),
                 &0,
             );
             self.immediate_context.IASetIndexBuffer(
                 index_buffer.buffer.as_ptr(),
-                T::dxgi_format(),
+                I::DXGI_FORMAT,
                 0,
             );
             self.immediate_context
@@ -121,13 +122,6 @@ impl Context {
     pub fn set_viewport(&self, viewport: &d3d11::D3D11_VIEWPORT) {
         unsafe {
             self.immediate_context.RSSetViewports(1, viewport);
-        }
-    }
-
-    /// セットされている Vertex Buffer で描画する。
-    pub fn draw(&self, vertices: usize) {
-        unsafe {
-            self.immediate_context.Draw(vertices as u32, 0);
         }
     }
 
