@@ -400,14 +400,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "exr",
- "glium",
  "image",
- "itertools",
- "lazy_static",
  "log",
- "pretty_env_logger",
  "ultraviolet",
- "weavy_crab",
 ]
 
 [[package]]
@@ -423,6 +418,22 @@ dependencies = [
  "weavy_crab",
  "winapi 0.3.9",
  "winit",
+]
+
+[[package]]
+name = "derky-gl4"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "derky",
+ "glium",
+ "image",
+ "itertools",
+ "lazy_static",
+ "log",
+ "pretty_env_logger",
+ "ultraviolet",
+ "weavy_crab",
 ]
 
 [[package]]

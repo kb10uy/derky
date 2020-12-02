@@ -2,7 +2,9 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, HresultErrorExt, IndexBuffer, IndexInteger, Topology, Vertex},
+    rendering::{
+        ComPtr, ConstantBuffer, HresultErrorExt, IndexBuffer, IndexInteger, Topology, Vertex,
+    },
 };
 
 use std::{
@@ -108,14 +110,10 @@ impl Context {
     }
 
     /// Vertex Shader の Constant Buffer をセットする。
-    pub fn set_constant_buffer_vertex(
-        &self,
-        slot: u32,
-        constant_buffer: &ComPtr<d3d11::ID3D11Buffer>,
-    ) {
+    pub fn set_constant_buffer_vertex<T>(&self, slot: u32, constant_buffer: &ConstantBuffer<T>) {
         unsafe {
             self.immediate_context
-                .VSSetConstantBuffers(slot, 1, &constant_buffer.as_ptr());
+                .VSSetConstantBuffers(slot, 1, &constant_buffer.buffer.as_ptr());
         }
     }
 
@@ -152,7 +150,7 @@ pub fn create_d3d11(
             BufferDesc: dxgitype::DXGI_MODE_DESC {
                 Width: dimension.0,
                 Height: dimension.1,
-                Format: dxgiformat::DXGI_FORMAT_R16G16B16A16_FLOAT,
+                Format: dxgiformat::DXGI_FORMAT_R8G8B8A8_UNORM,
                 RefreshRate: dxgitype::DXGI_RATIONAL {
                     Numerator: 0,
                     Denominator: 0,

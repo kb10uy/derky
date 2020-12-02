@@ -4,34 +4,32 @@ version = "0.1.0"
 authors = ["kb10uy <kb10uy@kb10uy.org>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Dependencies
+
+[dependencies.anyhow]
+version = "1.0"
 
 [dependencies.log]
 version = "0.4"
-
-[dependencies.pretty_env_logger]
-version = "0.4"
-
-[dependencies.glium]
-version = "0.28"
 
 [dependencies.ultraviolet]
 version = "0.7"
 
 [dependencies.image]
 version = "0.23"
+default-features = false
+features = ["png", "jpeg", "dxt"]
 
 [dependencies.exr]
 version = "0.9"
 
-[dependencies.itertools]
-version = "0.9"
+# Profile overrides
 
-[dependencies.lazy_static]
-version = "1.4"
+[profile.release]
+lto = true
 
-[dependencies.anyhow]
-version = "1.0"
+[profile.dev.package.image]
+opt-level = 3
 
-[dependencies.weavy_crab]
-path = "../weavy_crab"
+[profile.dev.package.exr]
+opt-level = 3

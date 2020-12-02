@@ -1,17 +1,19 @@
 SHADER_DIR := derky-d3d11/shaders
 SHADERS := \
     geometry
+INCLUDES := \
+	common.hlsli
 
 # -----------------------------------------------------------------------------
 SHADERS_QUALIFIED = $(addprefix $(SHADER_DIR)/,$(SHADERS))
+INCLUDES_QUALIFIED = $(addprefix $(SHADER_DIR)/,$(INCLUDES))
 
-all: $(addsuffix .vs.bin,$(SHADERS_QUALIFIED)) $(addsuffix .ps.bin,$(SHADERS_QUALIFIED))
+.PHONY: all
 
-%.vs.bin: %.hlsl FORCE
+all: $(addsuffix .vso,$(SHADERS_QUALIFIED)) $(addsuffix .pso,$(SHADERS_QUALIFIED))
+
+%.vso: %.hlsl $(INCLUDES_QUALIFIED)
 	fxc.exe	/T vs_5_0 /E vertex_main /Fo $@ $<
 
-%.ps.bin: %.hlsl FORCE
+%.pso: %.hlsl $(INCLUDES_QUALIFIED)
 	fxc.exe	/T ps_5_0 /E pixel_main /Fo $@ $<
-
-FORCE:
-.PHONY: all FORCE

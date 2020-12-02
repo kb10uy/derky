@@ -5,7 +5,7 @@ use crate::{
     rendering::{ComPtr, Context, HresultErrorExt},
 };
 
-use std::{ffi::c_void, marker::PhantomData, mem::size_of};
+use std::{ffi::c_void, marker::PhantomData, mem::size_of, slice::from_ref};
 
 use anyhow::{Context as AnyhowContext, Result};
 use ultraviolet::{Vec2, Vec3};
@@ -155,7 +155,7 @@ impl<T> ConstantBuffer<T> {
     pub fn new(device: &ComPtr<d3d11::ID3D11Device>, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
-            &[initial],
+            from_ref(initial),
             d3d11::D3D11_USAGE_DYNAMIC,
             d3d11::D3D11_BIND_CONSTANT_BUFFER,
             d3d11::D3D11_CPU_ACCESS_WRITE,

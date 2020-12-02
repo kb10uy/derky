@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use exr::prelude::rgba_image::*;
+use derky::texture::load_hdr_image;
 use glium::{
     backend::Facade,
     glutin::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder},
@@ -84,8 +84,8 @@ impl<H: Uniforms, T: Uniforms> Uniforms for UniformsSet<H, T> {
 
 /// シェーダーを読み込む。
 pub fn load_program(display: &impl Facade, basename: &str) -> Result<Program> {
-    let mut vertex_file = BufReader::new(File::open(format!("shaders/{}.vert", basename))?);
-    let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
+    let mut vertex_file = BufReader::new(File::open(format!("{}.vert", basename))?);
+    let mut fragment_file = BufReader::new(File::open(format!("{}.frag", basename))?);
 
     let mut vertex_shader = String::with_capacity(1024);
     let mut fragment_shader = String::with_capacity(1024);
@@ -103,8 +103,8 @@ pub fn load_program(display: &impl Facade, basename: &str) -> Result<Program> {
 
 /// シェーダーを読み込む。
 pub fn load_screen_program(display: &impl Facade, basename: &str) -> Result<Program> {
-    let mut vertex_file = BufReader::new(File::open("shaders/screen.vert")?);
-    let mut fragment_file = BufReader::new(File::open(format!("shaders/{}.frag", basename))?);
+    let mut vertex_file = BufReader::new(File::open("derky-gl4/shaders/screen.vert")?);
+    let mut fragment_file = BufReader::new(File::open(format!("{}.frag", basename))?);
 
     let mut vertex_shader = String::with_capacity(1024);
     let mut fragment_shader = String::with_capacity(1024);
@@ -200,27 +200,9 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
 }
 
 pub fn load_exr_texture(facade: &impl Facade, filename: &str) -> Result<Texture2d> {
-    let (_, (image, w, h)) = ImageInfo::read_pixels_from_file(
-        filename,
-        read_options::high(),
-        |info| {
-            let w = info.resolution.width();
-            let h = info.resolution.height();
-            let image = vec![0f32; w * h * 4];
-            (image, w, h)
-        },
-        |(image, w, _), pos, pixel| {
-            let base_index = (pos.y() * *w + pos.x()) * 4;
-            let pixel_array: [f32; 4] = pixel.into();
-            for i in 0..4 {
-                image[base_index + i] = pixel_array[i];
-            }
-        },
-    )?;
-
-    info!("OpenEXR texture loaded: {}, {}", w, h);
-
-    let raw_image = RawImage2d::from_raw_rgba_reversed(&image[..], (w as u32, h as u32));
+    let image = load_hdr_image(filename)?;
+    let (width, height) = image.dimensions();
+    let raw_image = RawImage2d::from_raw_rgba_reversed(image.data(), (width as u32, height as u32));
     let texture = Texture2d::with_format(
         facade,
         raw_image,
