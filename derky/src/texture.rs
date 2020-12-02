@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::{bail, Result};
 use exr::prelude::rgba_image::*;
+use image::{imageops::resize, imageops::FilterType, GenericImageView, Primitive, Rgba};
 use log::{debug, info};
 
 /// Represents a RGBA image data with raw element array and dimensions.
@@ -13,7 +14,7 @@ pub struct RgbaImageData<T: Copy> {
     height: usize,
 }
 
-impl<T: Copy> RgbaImageData<T> {
+impl<T: 'static + Copy> RgbaImageData<T> {
     /// Gets the dimension of this image.
     pub fn dimensions(&self) -> (usize, usize) {
         (self.width, self.height)
@@ -45,6 +46,64 @@ impl<T: Copy> RgbaImageData<T> {
                 })
             }
         }
+    }
+
+    /// Resizes (scale up) to dimensions which are power of 2.
+    pub fn resize_to_power_of_2(&self) -> RgbaImageData<T>
+    where
+        T: Primitive,
+    {
+        /// Rounds up to power of 2.
+        fn round(x: usize) -> usize {
+            if x.count_ones() == 1 {
+                x
+            } else {
+                1 << (32 - x.leading_zeros())
+            }
+        };
+
+        let new_width = round(self.width);
+        let new_height = round(self.height);
+
+        let new_image = resize(
+            self,
+            new_width as u32,
+            new_height as u32,
+            FilterType::Lanczos3,
+        );
+
+        RgbaImageData {
+            data: new_image.into_raw().into_boxed_slice(),
+            width: new_width,
+            height: new_height,
+        }
+    }
+}
+
+impl<T: 'static + Primitive> GenericImageView for RgbaImageData<T> {
+    type Pixel = Rgba<T>;
+    type InnerImageView = Self;
+
+    fn dimensions(&self) -> (u32, u32) {
+        (self.width as u32, self.height as u32)
+    }
+
+    fn bounds(&self) -> (u32, u32, u32, u32) {
+        (0, self.width as u32, 0, self.height as u32)
+    }
+
+    fn get_pixel(&self, x: u32, y: u32) -> Self::Pixel {
+        let base_index = (y as usize * self.width + x as usize) * 4;
+        Rgba([
+            self.data[base_index + 0],
+            self.data[base_index + 1],
+            self.data[base_index + 2],
+            self.data[base_index + 3],
+        ])
+    }
+
+    fn inner(&self) -> &Self::InnerImageView {
+        self
     }
 }
 
