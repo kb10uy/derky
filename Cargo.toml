@@ -8,5 +8,5 @@ members = [
 
 # Profile overrides
 
-[profile.release]
-lto = true
+# [profile.release]
+# lto = true

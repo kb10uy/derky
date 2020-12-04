@@ -12,13 +12,9 @@ use environment::Environment;
 use material::Material;
 use model::{load_obj, ModelGroup};
 
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::time::Duration;
 
-use anyhow::{format_err, Result};
+use anyhow::Result;
 use derky::model::Model;
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
@@ -28,9 +24,7 @@ use glium::{
     BackfaceCullingMode, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame,
     IndexBuffer, LinearBlendingFactor, Program, Surface, VertexBuffer,
 };
-use log::info;
 use ultraviolet::{Mat4, Vec3};
-use weavy_crab::Parser;
 
 pub struct Application {
     environment: Environment,

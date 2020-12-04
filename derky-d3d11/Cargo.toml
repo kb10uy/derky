@@ -25,8 +25,5 @@ version = "0.23"
 [dependencies.ultraviolet]
 version = "0.7"
 
-[dependencies.weavy_crab]
-path = "../weavy_crab"
-
 [dependencies.derky]
 path = "../derky"

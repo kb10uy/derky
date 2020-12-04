@@ -12,11 +12,40 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use derky::texture::{load_hdr_image, load_ldr_image, RgbaImageData};
+use derky::texture::{load_hdr_image, load_ldr_image, Channels, RgbaImageData};
 use winapi::{
     shared::{dxgiformat, dxgitype},
     um::{d3d11, d3dcommon},
 };
+
+/// テクスチャのピクセル要素が実装するトレイト。
+pub trait TextureElement: 'static + Copy {
+    /// チャンネル数に対応する `DXGI_FORMAT` を取得する。
+    fn get_format(channels: usize) -> dxgiformat::DXGI_FORMAT;
+}
+
+impl TextureElement for u8 {
+    fn get_format(channels: usize) -> dxgiformat::DXGI_FORMAT {
+        match channels {
+            1 => dxgiformat::DXGI_FORMAT_R8_UINT,
+            2 => dxgiformat::DXGI_FORMAT_R8G8_UINT,
+            4 => dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT,
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl TextureElement for f32 {
+    fn get_format(channels: usize) -> dxgiformat::DXGI_FORMAT {
+        match channels {
+            1 => dxgiformat::DXGI_FORMAT_R32_FLOAT,
+            2 => dxgiformat::DXGI_FORMAT_R32G32_FLOAT,
+            3 => dxgiformat::DXGI_FORMAT_R32G32B32_FLOAT,
+            4 => dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT,
+            _ => unimplemented!(),
+        }
+    }
+}
 
 /// `ID3D11Texture2D`, `ID3D11ShaderResourceView`, `ID3D11SamplerState` を保持する。
 pub struct Texture {
@@ -26,6 +55,21 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn new<T: TextureElement, C: Channels>(
+        device: &ComPtr<d3d11::ID3D11Device>,
+        data: &RgbaImageData<T, C>
+    ) -> Result<Texture> {
+        let texture = unsafe { Texture::create_texture(device, data)? };
+        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
+        let sampler = unsafe { Texture::create_sampler(device)? };
+
+        Ok(Texture {
+            texture,
+            view,
+            sampler,
+        })
+    }
+
     /// JPEG や PNG などの LDR テクスチャを読み込む。
     pub fn load_ldr(
         device: &ComPtr<d3d11::ID3D11Device>,
@@ -33,9 +77,7 @@ impl Texture {
     ) -> Result<Texture> {
         let image = load_ldr_image(filename)?.resize_to_power_of_2();
 
-        let texture = unsafe {
-            Texture::create_texture(device, &image, dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT)?
-        };
+        let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
 
@@ -53,9 +95,7 @@ impl Texture {
     ) -> Result<Texture> {
         let image = load_hdr_image(filename)?.resize_to_power_of_2();
 
-        let texture = unsafe {
-            Texture::create_texture(device, &image, dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT)?
-        };
+        let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
 
@@ -67,12 +107,14 @@ impl Texture {
     }
 
     /// `ID3D11Texture2D` を作成する。
-    unsafe fn create_texture<T: 'static + Copy>(
+    unsafe fn create_texture<T: TextureElement, C: Channels>(
         device: &ComPtr<d3d11::ID3D11Device>,
-        image: &RgbaImageData<T>,
-        format: dxgiformat::DXGI_FORMAT,
+        image: &RgbaImageData<T, C>,
     ) -> Result<ComPtr<d3d11::ID3D11Texture2D>> {
         let (width, height) = image.dimensions();
+        let channels = C::CHANNELS;
+        let format = T::get_format(channels);
+
         let desc = d3d11::D3D11_TEXTURE2D_DESC {
             Width: width as u32,
             Height: height as u32,
@@ -89,11 +131,13 @@ impl Texture {
             MiscFlags: 0,
         };
 
-        let channels = Texture::get_channels(format);
         let initial = d3d11::D3D11_SUBRESOURCE_DATA {
             pSysMem: image.data().as_ptr() as *const c_void,
-            SysMemPitch: size_of::<T>() as u32 * width as u32 * channels,
-            SysMemSlicePitch: size_of::<T>() as u32 * width as u32 * height as u32 * channels,
+            SysMemPitch: size_of::<T>() as u32 * width as u32 * channels as u32,
+            SysMemSlicePitch: size_of::<T>() as u32
+                * width as u32
+                * height as u32
+                * channels as u32,
         };
 
         let mut texture = null!(d3d11::ID3D11Texture2D);
@@ -163,22 +207,5 @@ impl Texture {
 
         comptrize!(sampler);
         Ok(sampler)
-    }
-
-    /// `DXGI_FORMAT` からチャンネル数を判定する。
-    fn get_channels(format: dxgiformat::DXGI_FORMAT) -> u32 {
-        match format {
-            dxgiformat::DXGI_FORMAT_R8G8_UINT
-            | dxgiformat::DXGI_FORMAT_R16G16_UINT
-            | dxgiformat::DXGI_FORMAT_R32G32_UINT
-            | dxgiformat::DXGI_FORMAT_R16G16_FLOAT
-            | dxgiformat::DXGI_FORMAT_R32G32_FLOAT => 2,
-            dxgiformat::DXGI_FORMAT_R8G8B8A8_UINT
-            | dxgiformat::DXGI_FORMAT_R16G16B16A16_UINT
-            | dxgiformat::DXGI_FORMAT_R32G32B32A32_UINT
-            | dxgiformat::DXGI_FORMAT_R16G16B16A16_FLOAT
-            | dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT => 4,
-            _ => todo!("Cannot judge channel count"),
-        }
     }
 }

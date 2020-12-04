@@ -11,62 +11,6 @@ use anyhow::{Context, Result};
 use ultraviolet::{Vec2, Vec3, Vec4};
 use winapi::{shared::dxgiformat, um::d3d11};
 
-/// D3D11 の頂点とレイアウトを生成する。
-#[macro_export]
-macro_rules! d3d11_vertex {
-    ( $n:ident : $iln:ident { $( $fn:ident : $ft:ty => ( $fs:expr , $fsi:expr ) ),* $(,)? } ) => {
-        d3d11_vertex_struct!($n { $($fn: $ft),* });
-        d3d11_vertex_layout!($iln { $($ft => ($fs, $fsi)),* });
-    };
-}
-
-/// D3D11 の頂点の構造体を定義する。
-macro_rules! d3d11_vertex_struct {
-    ( $n:ident { $( $fn:ident : $ft:ty ),* } ) => {
-        #[derive(Debug, Clone)]
-        pub struct $n {
-            $(pub $fn: $ft,)*
-        }
-
-        impl D3d11Vertex for $n {}
-    };
-}
-
-/// D3D11 の頂点の Input Layout を定義する。
-macro_rules! d3d11_vertex_layout {
-    ( $iln:ident { $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } ) => {
-        #[allow(dead_code)]
-        pub const $iln: [winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC; 0 $( + { stringify!($fsi); 1 } )*] =
-            d3d11_vertex_layout!{$($ft => ($fs, $fsi)),*}
-        ;
-    };
-    { $ft1:ty => ( $fs1:expr , $fsi1:expr ), $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } => {
-        [
-            winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
-                SemanticName: concat!($fs1, "\0").as_ptr() as *const i8,
-                SemanticIndex: $fsi1,
-                Format: <$ft1>::DXGI_FORMAT,
-                InputSlot: 0,
-                AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-                InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
-                InstanceDataStepRate: 0,
-            },
-            $(d3d11_vertex_layout!{, $ft => ($fs, $fsi) }),*
-        ]
-    };
-    { , $ft:ty => ( $fs:expr , $fsi:expr ) } => {
-        winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
-            SemanticName: concat!($fs, "\0").as_ptr() as *const i8,
-            SemanticIndex: $fsi,
-            Format: <$ft>::DXGI_FORMAT,
-            InputSlot: 0,
-            AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-            InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
-            InstanceDataStepRate: 0,
-        }
-    };
-}
-
 /// D3D11 頂点
 pub trait D3d11Vertex {}
 
@@ -89,6 +33,69 @@ impl AsDxgiFormat for Vec3 {
 
 impl AsDxgiFormat for Vec4 {
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT;
+}
+
+/// D3D11 の頂点とレイアウトを生成する。
+#[macro_export]
+macro_rules! d3d11_vertex {
+    ( $n:ident : $iln:ident { $( $fn:ident : $ft:ty => ( $fs:expr , $fsi:expr ) ),* $(,)? } ) => {
+        $crate::__d3d11_vertex_struct!($n { $($fn: $ft),* });
+        $crate::__d3d11_vertex_layout!($iln { $($ft => ($fs, $fsi)),* });
+    };
+}
+
+/// D3D11 の頂点の構造体を定義する。
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __d3d11_vertex_struct {
+    ( $n:ident { $( $fn:ident : $ft:ty ),* } ) => {
+        #[derive(Debug, Clone)]
+        pub struct $n {
+            $(pub $fn: $ft,)*
+        }
+
+        impl $crate::rendering::D3d11Vertex for $n {}
+    };
+}
+
+/// D3D11 の頂点の Input Layout を定義する。
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __d3d11_vertex_layout {
+    ( $iln:ident { $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } ) => {
+        #[allow(dead_code)]
+        pub const $iln: [winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC; 0 $( + { stringify!($fsi); 1 } )*] =
+            $crate::__d3d11_vertex_layout!{$($ft => ($fs, $fsi)),*}
+        ;
+    };
+
+    {} => {
+        []
+    };
+    { $ft1:ty => ( $fs1:expr , $fsi1:expr ), $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } => {
+        [
+            winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
+                SemanticName: concat!($fs1, "\0").as_ptr() as *const i8,
+                SemanticIndex: $fsi1,
+                Format: <$ft1 as $crate::rendering::AsDxgiFormat>::DXGI_FORMAT,
+                InputSlot: 0,
+                AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
+                InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
+                InstanceDataStepRate: 0,
+            },
+            $(
+                winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
+                    SemanticName: concat!($fs, "\0").as_ptr() as *const i8,
+                    SemanticIndex: $fsi,
+                    Format: <$ft as $crate::rendering::AsDxgiFormat>::DXGI_FORMAT,
+                    InputSlot: 0,
+                    AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
+                    InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
+                    InstanceDataStepRate: 0,
+                }
+            ),*
+        ]
+    };
 }
 
 d3d11_vertex!(Vertex : VERTEX_INPUT_LAYOUT {
