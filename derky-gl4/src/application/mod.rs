@@ -10,7 +10,8 @@ use crate::rendering::{
 };
 use environment::Environment;
 use material::Material;
-use model::Model;
+use model::{load_obj, ModelGroup};
+
 use std::{
     fs::File,
     path::{Path, PathBuf},
@@ -18,6 +19,7 @@ use std::{
 };
 
 use anyhow::{format_err, Result};
+use derky::model::Model;
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     index::PrimitiveType,
@@ -41,21 +43,26 @@ pub struct Application {
     program_composition: Program,
     vertices_screen: VertexBuffer<CompositionVertex>,
     indices_screen: IndexBuffer<u16>,
-    model: Model,
-    model_room: Model,
+    model: Model<ModelGroup, Material>,
+    model_room: Model<ModelGroup, Material>,
 }
 
 impl Application {
     pub fn new(display: &Display) -> Result<Application> {
-        let model = Application::load_model(display, "assets/Natsuki.obj")?;
-        let model_room = Application::load_model(display, "assets/Room.obj")?;
+        let model = load_obj(display, "assets/Natsuki.obj")?;
+        let model_room = load_obj(display, "assets/Room.obj")?;
 
         let program_geometry = load_program(display, "derky-gl4/shaders/geometry/geometry")?;
-        let program_ambient_lighting = load_screen_program(display, "derky-gl4/shaders/lighting/ambient")?;
-        let program_image_lighting = load_screen_program(display, "derky-gl4/shaders/lighting/image")?;
-        let program_directional_lighting = load_screen_program(display, "derky-gl4/shaders/lighting/directional")?;
-        let program_point_lighting = load_screen_program(display, "derky-gl4/shaders/lighting/point")?;
-        let program_composition = load_screen_program(display, "derky-gl4/shaders/composition/composition")?;
+        let program_ambient_lighting =
+            load_screen_program(display, "derky-gl4/shaders/lighting/ambient")?;
+        let program_image_lighting =
+            load_screen_program(display, "derky-gl4/shaders/lighting/image")?;
+        let program_directional_lighting =
+            load_screen_program(display, "derky-gl4/shaders/lighting/directional")?;
+        let program_point_lighting =
+            load_screen_program(display, "derky-gl4/shaders/lighting/point")?;
+        let program_composition =
+            load_screen_program(display, "derky-gl4/shaders/composition/composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =
@@ -105,40 +112,31 @@ impl Application {
         };
 
         let program = &self.program_geometry;
+        let models = [&self.model_room, &self.model];
 
-        self.model_room.visit_groups(|vb, ib, material| {
-            let albedo = match material {
-                Some(Material::Diffuse { albedo, .. }) => albedo,
-                _ => return Ok(()),
-            };
+        for &target in &models {
+            for (mg, mat) in target.visit() {
+                let albedo = match mat {
+                    Some(Material::Diffuse { albedo, .. }) => albedo,
+                    _ => return Ok(()),
+                };
 
-            let uniforms = UniformsSet::new(generate_uniforms())
-                .add(self.environment.get_unforms())
-                .add(uniform! {
-                    model_matrix: room_matrix,
-                    material_albedo: albedo,
-                });
+                let uniforms = UniformsSet::new(generate_uniforms())
+                    .add(self.environment.get_unforms())
+                    .add(uniform! {
+                        model_matrix: room_matrix,
+                        material_albedo: albedo,
+                    });
 
-            geometry_buffer.draw(vb, ib, program, &uniforms, &params)?;
-            Ok(())
-        })?;
-
-        self.model.visit_groups(|vb, ib, material| {
-            let albedo = match material {
-                Some(Material::Diffuse { albedo, .. }) => albedo,
-                _ => return Ok(()),
-            };
-
-            let uniforms = UniformsSet::new(generate_uniforms())
-                .add(self.environment.get_unforms())
-                .add(uniform! {
-                    model_matrix: room_matrix,
-                    material_albedo: albedo,
-                });
-
-            geometry_buffer.draw(vb, ib, program, &uniforms, &params)?;
-            Ok(())
-        })?;
+                geometry_buffer.draw(
+                    &mg.vertex_buffer,
+                    &mg.index_buffer,
+                    program,
+                    &uniforms,
+                    &params,
+                )?;
+            }
+        }
 
         Ok(())
     }
@@ -234,30 +232,5 @@ impl Application {
         )?;
 
         Ok(())
-    }
-
-    /// モデルを読み込む。
-    fn load_model(display: &Display, path: impl AsRef<Path>) -> Result<Model> {
-        let path = path.as_ref();
-        let directory = PathBuf::from(path.parent().ok_or_else(|| format_err!("Invalid path"))?);
-
-        let include_base = directory.clone();
-        let mut parser = Parser::new(move |filename, _| {
-            let mut include_path = include_base.clone();
-            include_path.push(filename);
-            let file = File::open(include_path)?;
-            Ok(file)
-        });
-
-        let obj_file = File::open(path)?;
-        let obj = parser.parse(obj_file, ())?;
-
-        info!(
-            "Wavefront OBJ Summary: {} object(s), {} material(s)",
-            obj.objects().len(),
-            obj.materials().len()
-        );
-
-        Model::from_obj(display, &obj, directory)
     }
 }

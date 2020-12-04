@@ -1,6 +1,6 @@
 //! Contains general model operations.
 
-use std::{error::Error, fs::read_to_string, io::Cursor, path::Path};
+use std::{fs::read_to_string, io::Cursor, path::Path};
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
@@ -21,9 +21,8 @@ impl<VG, M> Model<VG, M> {
     /// * `material_mapper` a closure that converts `Material` into `M`
     pub fn load_obj<
         P: AsRef<Path>,
-        E: 'static + Send + Sync + Error,
-        VM: FnMut(Box<[Box<[FaceVertexPair]>]>) -> Result<VG, E>,
-        MM: FnMut(Material) -> Result<M, E>,
+        VM: FnMut(Box<[Box<[FaceVertexPair]>]>) -> Result<VG>,
+        MM: FnMut(Material) -> Result<M>,
     >(
         filename: P,
         vertex_mapper: VM,
@@ -54,7 +53,7 @@ impl<VG, M> Model<VG, M> {
             .into_vec()
             .into_iter()
             .map(material_mapper)
-            .collect::<Result<Box<[M]>, E>>()
+            .collect::<Result<Box<[M]>>>()
             .context("Error occured during material mapping")?;
 
         let mut vertex_groups = vec![];

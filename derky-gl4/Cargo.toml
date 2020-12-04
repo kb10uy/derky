@@ -15,9 +15,6 @@ version = "0.4"
 [dependencies.pretty_env_logger]
 version = "0.4"
 
-[dependencies.itertools]
-version = "0.9"
-
 [dependencies.lazy_static]
 version = "1.4"
 

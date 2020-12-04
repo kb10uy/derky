@@ -3,7 +3,8 @@
 use super::material::Material;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{format_err, Result};
+use derky::model::Model;
 use derky::texture::{load_ldr_image, RgbaImageData};
 use glium::{
     backend::Facade,
@@ -12,10 +13,8 @@ use glium::{
     texture::{RawImage2d, Texture2d},
     IndexBuffer, VertexBuffer,
 };
-use itertools::Itertools;
 use log::info;
 use ultraviolet::{Vec3, Vec4};
-use weavy_crab::{Material as WavefrontMaterial, WavefrontObj};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -27,42 +26,25 @@ pub struct Vertex {
 implement_vertex!(Vertex, position, normal, uv);
 
 #[derive(Debug)]
-struct ModelGroup {
-    vertex_buffer: VertexBuffer<Vertex>,
-    index_buffer: IndexBuffer<u32>,
+pub struct ModelGroup {
+    pub(crate) vertex_buffer: VertexBuffer<Vertex>,
+    pub(crate) index_buffer: IndexBuffer<u32>,
 }
 
-/// VBO/IBO 化したモデルの情報を表す。
-#[derive(Debug)]
-pub struct Model {
-    face_groups: Box<[(VertexBuffer<Vertex>, IndexBuffer<u32>, Option<usize>)]>,
-    materials: Box<[Material]>,
-}
-
-#[allow(dead_code)]
-impl Model {
-    pub fn from_obj(
-        facade: &impl Facade,
-        obj: &WavefrontObj,
-        base_path: impl AsRef<Path>,
-    ) -> Result<Model> {
-        let mut face_groups = vec![];
-        let materials = Model::convert_materials(facade, obj.materials(), base_path)?;
-
-        let mut faces: Vec<_> = obj
-            .objects()
-            .iter()
-            .flat_map(|o| o.groups().iter().flat_map(|g| g.faces()))
-            .collect();
-        faces.sort_by_key(|f| f.1);
-        let groups = faces.into_iter().group_by(|f| f.1);
-        for (material, faces) in groups.into_iter() {
+pub fn load_obj(
+    facade: &impl Facade,
+    filename: impl AsRef<Path>,
+) -> Result<Model<ModelGroup, Material>> {
+    let filename = filename.as_ref();
+    let base_path = filename.parent().ok_or_else(|| format_err!("Invalid path"))?;
+    Model::load_obj(
+        filename,
+        |faces| {
             let mut vertices = vec![];
             let mut indices = vec![];
-            for (face, _) in faces {
+            for face in &faces[..] {
                 let vertex_base = vertices.len();
-                let original_vertices: Vec<_> = face.collect();
-                for original_vertice in &original_vertices {
+                for original_vertice in &face[..] {
                     vertices.push(Vertex {
                         position: original_vertice.0.into(),
                         normal: original_vertice
@@ -72,7 +54,7 @@ impl Model {
                         uv: original_vertice.1.unwrap_or_default().into(),
                     });
                 }
-                for i in 0..(original_vertices.len() - 2) {
+                for i in 0..(face.len() - 2) {
                     indices.push(vertex_base as u32);
                     indices.push((vertex_base + i + 1) as u32);
                     indices.push((vertex_base + i + 2) as u32);
@@ -80,53 +62,19 @@ impl Model {
             }
             let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
             let index_buffer = IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?;
-            face_groups.push((vertex_buffer, index_buffer, material));
-        }
-
-        Ok(Model {
-            face_groups: face_groups.into_boxed_slice(),
-            materials,
-        })
-    }
-
-    pub fn materials(&self) -> &[Material] {
-        &self.materials
-    }
-
-    /// 全てのグループを巡回する。
-    pub fn visit_groups(
-        &self,
-        mut visitor: impl FnMut(
-            &VertexBuffer<Vertex>,
-            &IndexBuffer<u32>,
-            Option<&Material>,
-        ) -> Result<()>,
-    ) -> Result<()> {
-        for (vb, ib, mi) in &self.face_groups[..] {
-            let material = mi.map(|i| self.materials.get(i)).flatten();
-            visitor(vb, ib, material)?;
-        }
-
-        Ok(())
-    }
-
-    fn convert_materials(
-        facade: &impl Facade,
-        original_materials: &[WavefrontMaterial],
-        base_path: impl AsRef<Path>,
-    ) -> Result<Box<[Material]>> {
-        let mut materials = vec![];
-
-        for original_material in original_materials {
-            info!("Loading material {}", original_material.name());
-            let image = if let Some(path) = original_material.diffuse_map() {
-                let mut filename = PathBuf::from(base_path.as_ref());
+            Ok(ModelGroup {
+                vertex_buffer,
+                index_buffer,
+            })
+        },
+        |material| {
+            info!("Loading material {}", material.name());
+            let image = if let Some(path) = material.diffuse_map() {
+                let mut filename = PathBuf::from(base_path);
                 filename.push(path);
                 load_ldr_image(filename)?
             } else {
-                let color = original_material
-                    .diffuse_color()
-                    .unwrap_or(Vec3::new(1.0, 1.0, 1.0));
+                let color = material.diffuse_color().unwrap_or(Vec3::new(1.0, 1.0, 1.0));
                 info!("Creating dummy image: {:?}", color);
 
                 RgbaImageData::new(
@@ -148,13 +96,10 @@ impl Model {
             );
             let texture = Texture2d::new(facade, raw_image)?;
 
-            let material = Material::Diffuse {
+            Ok(Material::Diffuse {
                 color: Vec4::new(1.0, 1.0, 1.0, 1.0),
                 albedo: texture,
-            };
-            materials.push(material);
-        }
-
-        Ok(materials.into_boxed_slice())
-    }
+            })
+        },
+    )
 }
