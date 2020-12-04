@@ -5,7 +5,7 @@ mod obj;
 mod parser;
 
 pub use mtl::{Material, MaterialProperty};
-pub use obj::{Group, Object};
+pub use obj::{Group, Object, FaceVertexPair};
 pub use parser::Parser;
 
 use std::{

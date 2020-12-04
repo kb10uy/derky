@@ -395,8 +395,10 @@ dependencies = [
  "anyhow",
  "exr",
  "image",
+ "itertools",
  "log",
  "ultraviolet",
+ "weavy_crab",
 ]
 
 [[package]]

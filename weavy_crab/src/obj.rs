@@ -4,6 +4,9 @@ use ultraviolet::{Vec2, Vec3};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FaceIndexPair(pub usize, pub Option<usize>, pub Option<usize>);
 
+/// Represents a vertex pair in face definition.
+pub type FaceVertexPair = (Vec3, Option<Vec2>, Option<Vec3>);
+
 /// Represents an object in OBJ file.
 #[derive(Debug, Clone)]
 pub struct Object {
@@ -111,7 +114,7 @@ pub struct FaceVertices<'a> {
 }
 
 impl<'a> Iterator for FaceVertices<'a> {
-    type Item = (Vec3, Option<Vec2>, Option<Vec3>);
+    type Item = FaceVertexPair;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_index < self.source_pairs.len() {

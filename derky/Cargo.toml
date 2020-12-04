@@ -12,6 +12,9 @@ version = "1.0"
 [dependencies.log]
 version = "0.4"
 
+[dependencies.itertools]
+version = "0.9"
+
 [dependencies.ultraviolet]
 version = "0.7"
 
@@ -22,3 +25,6 @@ features = ["png", "jpeg", "dxt"]
 
 [dependencies.exr]
 version = "0.9"
+
+[dependencies.weavy_crab]
+path = "../weavy_crab"
