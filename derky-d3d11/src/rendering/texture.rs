@@ -57,7 +57,7 @@ pub struct Texture {
 impl Texture {
     pub fn new<T: TextureElement, C: Channels>(
         device: &ComPtr<d3d11::ID3D11Device>,
-        data: &RgbaImageData<T, C>
+        data: &RgbaImageData<T, C>,
     ) -> Result<Texture> {
         let texture = unsafe { Texture::create_texture(device, data)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
@@ -159,18 +159,20 @@ impl Texture {
         device: &ComPtr<d3d11::ID3D11Device>,
         texture_ptr: *mut d3d11::ID3D11Texture2D,
     ) -> Result<ComPtr<d3d11::ID3D11ShaderResourceView>> {
+        /*
         let mut srv_desc = d3d11::D3D11_SHADER_RESOURCE_VIEW_DESC {
             Format: dxgiformat::DXGI_FORMAT_R8G8B8A8_UNORM,
             ViewDimension: d3dcommon::D3D11_SRV_DIMENSION_TEXTURE2D,
             u: zeroed(),
         };
         srv_desc.u.Texture2D_mut().MipLevels = 1;
+        */
 
         let mut view = null!(d3d11::ID3D11ShaderResourceView);
         device
             .CreateShaderResourceView(
                 texture_ptr as *mut d3d11::ID3D11Resource,
-                &srv_desc,
+                null!(d3d11::D3D11_SHADER_RESOURCE_VIEW_DESC), /* &srv_desc */
                 &mut view as *mut *mut d3d11::ID3D11ShaderResourceView,
             )
             .err()

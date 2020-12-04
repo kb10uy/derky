@@ -3,20 +3,19 @@ use crate::{
     rendering::{ComPtr, IndexBuffer, Texture, VertexBuffer},
 };
 
-use std::path::{Path, PathBuf};
+use std::{
+    f32::consts::PI,
+    path::{Path, PathBuf},
+};
 
-use anyhow::{format_err, Context, Result};
+use anyhow::{format_err, Result};
 use derky::{
     model::Model,
     texture::{load_ldr_image, RgbaImageData},
 };
 use log::info;
-use ultraviolet::{Mat3, Vec2, Vec3};
-use winapi::{
-    shared::{dxgi, dxgiformat, dxgitype, minwindef::HINSTANCE__},
-    um::{d3d11, d3dcommon},
-    Interface,
-};
+use ultraviolet::{Mat4, Vec2, Vec3};
+use winapi::um::d3d11;
 
 d3d11_vertex!(ModelVertex : MODEL_VERTEX_LAYOUT {
     position: Vec3 => ("POSITION", 0),
@@ -28,6 +27,7 @@ pub fn load_obj(
     device: &ComPtr<d3d11::ID3D11Device>,
     filename: impl AsRef<Path>,
 ) -> Result<Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>> {
+    let transform = Mat4::from_nonuniform_scale(Vec3::new(1.0, 1.0, -1.0)); // Mat4::from_rotation_y(PI) * ;
     let filename = filename.as_ref();
     let base_path = filename
         .parent()
@@ -41,12 +41,16 @@ pub fn load_obj(
             for face in &faces[..] {
                 let vertex_base = vertices.len();
                 for original_vertice in &face[..] {
-                    vertices.push(ModelVertex {
-                        position: original_vertice.0.into(),
-                        normal: original_vertice
+                    let position = transform * original_vertice.0.into_homogeneous_point();
+                    let normal = transform
+                        * original_vertice
                             .2
                             .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
-                            .into(),
+                            .into_homogeneous_vector();
+
+                    vertices.push(ModelVertex {
+                        position: position.into(),
+                        normal: normal.into(),
                         uv: original_vertice.1.unwrap_or_default().into(),
                     });
                 }
@@ -56,6 +60,11 @@ pub fn load_obj(
                     indices.push((vertex_base + i + 2) as u32);
                 }
             }
+            info!(
+                "Vertex group loaded; {} vertices, {} indices",
+                vertices.len(),
+                indices.len(),
+            );
             let vertex_buffer = VertexBuffer::new(device, &vertices)?;
             let index_buffer = IndexBuffer::new(device, &indices)?;
             Ok((vertex_buffer, index_buffer))

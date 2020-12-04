@@ -88,9 +88,9 @@ impl<T> ConstantBuffer<T> {
         let buffer = create_buffer(
             device,
             from_ref(initial),
-            d3d11::D3D11_USAGE_DYNAMIC,
+            d3d11::D3D11_USAGE_DEFAULT,
             d3d11::D3D11_BIND_CONSTANT_BUFFER,
-            d3d11::D3D11_CPU_ACCESS_WRITE,
+            0,
             "Constant",
         )?;
 
@@ -108,9 +108,9 @@ impl<T> ConstantBuffer<T> {
         let buffer = create_buffer(
             device,
             from_ref(initial),
-            d3d11::D3D11_USAGE_DYNAMIC,
+            d3d11::D3D11_USAGE_IMMUTABLE,
             d3d11::D3D11_BIND_CONSTANT_BUFFER,
-            d3d11::D3D11_CPU_ACCESS_WRITE,
+            0,
             "Constant",
         )?;
 
@@ -126,7 +126,6 @@ impl<T> ConstantBuffer<T> {
         if !self.modifiable {
             return;
         }
-
         unsafe {
             context.immediate_context.UpdateSubresource(
                 self.buffer.as_ptr() as *mut d3d11::ID3D11Resource,
@@ -143,6 +142,7 @@ impl<T> ConstantBuffer<T> {
 /// 型付きの Index Buffer
 pub struct IndexBuffer<T: IndexInteger> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
+    length: usize,
     inner_type: PhantomData<fn() -> T>,
 }
 
@@ -160,8 +160,14 @@ impl<T: IndexInteger> IndexBuffer<T> {
 
         Ok(IndexBuffer {
             buffer,
+            length: indices.len(),
             inner_type: Default::default(),
         })
+    }
+
+    /// Index Buffer の長さを取得する。
+    pub fn len(&self) -> usize {
+        self.length
     }
 }
 
