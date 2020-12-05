@@ -6,6 +6,9 @@ cbuffer Matrices : register(b0) {
     float4x4 projection;
 };
 
+Texture2D albedo : register(t0);
+SamplerState albedoSampler : register(s0);
+
 PsInput vertex_main(VsInput input) {
     PsInput output;
 
@@ -19,7 +22,7 @@ PsInput vertex_main(VsInput input) {
 
 PsOutput pixel_main(PsInput input) {
     PsOutput output;
-    output.color = float4(input.uv, 0.0, 1.0);
+    output.color = float4(albedo.Sample(albedoSampler, float2(input.uv.x, 1.0 - input.uv.y)).rgb, 1.0);
     return output;
 }
 

@@ -11,7 +11,7 @@ use std::{
 use anyhow::{format_err, Result};
 use derky::{
     model::Model,
-    texture::{load_ldr_image, RgbaImageData},
+    texture::{load_ldr_image, ImageData},
 };
 use log::info;
 use ultraviolet::{Mat4, Vec2, Vec3};
@@ -79,7 +79,7 @@ pub fn load_obj(
                 let color = material.diffuse_color().unwrap_or(Vec3::new(1.0, 1.0, 1.0));
                 info!("Creating dummy image: {:?}", color);
 
-                RgbaImageData::new(
+                ImageData::new(
                     &[
                         (color.x * 255.0) as u8,
                         (color.y * 255.0) as u8,

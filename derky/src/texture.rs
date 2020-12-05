@@ -33,14 +33,14 @@ impl Channels for Rgba {
 }
 
 /// Represents a RGBA image data with raw element array and dimensions.
-pub struct RgbaImageData<T: Copy, C: Channels> {
+pub struct ImageData<T: Copy, C: Channels> {
     data: Box<[T]>,
     width: usize,
     height: usize,
     _channels: PhantomData<fn() -> C>,
 }
 
-impl<T: 'static + Copy, C: Channels> RgbaImageData<T, C> {
+impl<T: 'static + Copy, C: Channels> ImageData<T, C> {
     /// Gets the dimension of this image.
     pub fn dimensions(&self) -> (usize, usize) {
         (self.width, self.height)
@@ -57,14 +57,16 @@ impl<T: 'static + Copy, C: Channels> RgbaImageData<T, C> {
     }
 
     /// Creates a new image from raw data.
-    pub fn new(data: &[T], width: usize, height: usize) -> Result<RgbaImageData<T, C>> {
+    pub fn new(data: &[T], width: usize, height: usize) -> Result<ImageData<T, C>> {
         let length = data.len();
         match length {
-            x if x % 4 != 0 => bail!("The length of data is not multiple of 4"),
-            x if x / 4 < width * height => bail!("The data is not enough for the dimensions"),
+            x if x % C::CHANNELS != 0 => bail!("The length of data is not multiple of 4"),
+            x if x / C::CHANNELS < width * height => {
+                bail!("The data is not enough for the dimensions")
+            }
             _ => {
                 let new_data = Vec::from(data);
-                Ok(RgbaImageData {
+                Ok(ImageData {
                     data: new_data.into_boxed_slice(),
                     width,
                     height,
@@ -75,7 +77,7 @@ impl<T: 'static + Copy, C: Channels> RgbaImageData<T, C> {
     }
 
     /// Resizes (scale up) to dimensions which are power of 2.
-    pub fn resize_to_power_of_2(&self) -> RgbaImageData<T, C>
+    pub fn resize_to_power_of_2(&self) -> ImageData<T, C>
     where
         T: Primitive,
     {
@@ -98,7 +100,7 @@ impl<T: 'static + Copy, C: Channels> RgbaImageData<T, C> {
             FilterType::Lanczos3,
         );
 
-        RgbaImageData {
+        ImageData {
             data: new_image.into_raw().into_boxed_slice(),
             width: new_width,
             height: new_height,
@@ -107,7 +109,7 @@ impl<T: 'static + Copy, C: Channels> RgbaImageData<T, C> {
     }
 }
 
-impl<T: 'static + Primitive, C: Channels> GenericImageView for RgbaImageData<T, C> {
+impl<T: 'static + Primitive, C: Channels> GenericImageView for ImageData<T, C> {
     type Pixel = ImageRgba<T>;
     type InnerImageView = Self;
 
@@ -120,7 +122,7 @@ impl<T: 'static + Primitive, C: Channels> GenericImageView for RgbaImageData<T, 
     }
 
     fn get_pixel(&self, x: u32, y: u32) -> Self::Pixel {
-        let base_index = (y as usize * self.width + x as usize) * 4;
+        let base_index = (y as usize * self.width + x as usize) * C::CHANNELS;
         ImageRgba([
             self.data[base_index + 0],
             self.data[base_index + 1],
@@ -135,7 +137,7 @@ impl<T: 'static + Primitive, C: Channels> GenericImageView for RgbaImageData<T, 
 }
 
 /// Loads a LDR (PNG, JPEG, and DXT) image.
-pub fn load_ldr_image(filename: impl AsRef<Path>) -> Result<RgbaImageData<u8, Rgba>> {
+pub fn load_ldr_image(filename: impl AsRef<Path>) -> Result<ImageData<u8, Rgba>> {
     let filename = filename.as_ref();
 
     debug!("Loading LDR image {:?}", filename);
@@ -144,7 +146,7 @@ pub fn load_ldr_image(filename: impl AsRef<Path>) -> Result<RgbaImageData<u8, Rg
     let data = original_image.into_raw().into_boxed_slice();
 
     info!("Loaded successfully; dimensions are {:?}", dimensions);
-    Ok(RgbaImageData {
+    Ok(ImageData {
         data,
         width: dimensions.0 as usize,
         height: dimensions.1 as usize,
@@ -153,7 +155,7 @@ pub fn load_ldr_image(filename: impl AsRef<Path>) -> Result<RgbaImageData<u8, Rg
 }
 
 /// Loads a HDR (OpenEXR only) image.
-pub fn load_hdr_image(filename: impl AsRef<Path>) -> Result<RgbaImageData<f32, Rgba>> {
+pub fn load_hdr_image(filename: impl AsRef<Path>) -> Result<ImageData<f32, Rgba>> {
     let filename = filename.as_ref();
 
     debug!("Loading HDR image {:?}", filename);
@@ -176,7 +178,7 @@ pub fn load_hdr_image(filename: impl AsRef<Path>) -> Result<RgbaImageData<f32, R
     )?;
 
     info!("Loaded successfully; dimensions are {:?}", (width, height));
-    Ok(RgbaImageData {
+    Ok(ImageData {
         data: data.into_boxed_slice(),
         width,
         height,

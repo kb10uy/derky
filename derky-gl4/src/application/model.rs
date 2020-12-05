@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{format_err, Result};
 use derky::model::Model;
-use derky::texture::{load_ldr_image, RgbaImageData};
+use derky::texture::{load_ldr_image, ImageData};
 use glium::{
     backend::Facade,
     implement_vertex,
@@ -36,7 +36,9 @@ pub fn load_obj(
     filename: impl AsRef<Path>,
 ) -> Result<Model<ModelGroup, Material>> {
     let filename = filename.as_ref();
-    let base_path = filename.parent().ok_or_else(|| format_err!("Invalid path"))?;
+    let base_path = filename
+        .parent()
+        .ok_or_else(|| format_err!("Invalid path"))?;
     Model::load_obj(
         filename,
         |faces| {
@@ -77,7 +79,7 @@ pub fn load_obj(
                 let color = material.diffuse_color().unwrap_or(Vec3::new(1.0, 1.0, 1.0));
                 info!("Creating dummy image: {:?}", color);
 
-                RgbaImageData::new(
+                ImageData::new(
                     &[
                         (color.x * 255.0) as u8,
                         (color.y * 255.0) as u8,

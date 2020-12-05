@@ -3,8 +3,8 @@
 use crate::{
     comptrize, null,
     rendering::{
-        ComPtr, ConstantBuffer, D3d11Vertex, HresultErrorExt, IndexBuffer, IndexInteger, Topology,
-        VertexBuffer,
+        ComPtr, ConstantBuffer, D3d11Vertex, HresultErrorExt, IndexBuffer, IndexInteger, Texture,
+        Topology, VertexBuffer,
     },
 };
 
@@ -107,6 +107,19 @@ impl Context {
             );
             self.immediate_context
                 .IASetPrimitiveTopology(topology.to_d3d11());
+        }
+    }
+
+    pub fn set_texture(&self, slot: u32, texture: Option<&Texture>) {
+        let texture_view = texture
+            .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
+            .unwrap_or(null!(_));
+        let sampler = texture.map(|p| p.sampler.as_ptr()).unwrap_or(null!(_));
+
+        unsafe {
+            self.immediate_context
+                .PSSetShaderResources(slot, 1, &texture_view);
+            self.immediate_context.PSSetSamplers(slot, 1, &sampler);
         }
     }
 
