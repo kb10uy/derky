@@ -17,7 +17,7 @@ smooth out vec3 v_normal;
 smooth out vec3 v_position;
 
 void main() {
-    v_uv = vec2(uv.x, 1.0 - uv.y);
+    v_uv = vec2(uv.x, uv.y);
     v_normal = normalize(model_matrix * vec4(normal, 0.0)).xyz;
     v_position = (model_matrix * vec4(position, 1.0)).xyz;
     gl_Position = env_projection_matrix * env_view_matrix * model_matrix * vec4(position, 1.0);

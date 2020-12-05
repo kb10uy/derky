@@ -90,8 +90,8 @@ pub fn load_obj(
             };
 
             let dimensions = image.dimensions();
-            let raw_image = RawImage2d::from_raw_rgba(
-                image.into_data().into_vec(),
+            let raw_image = RawImage2d::from_raw_rgba_reversed(
+                image.data(),
                 (dimensions.0 as u32, dimensions.1 as u32),
             );
             let texture = Texture2d::new(facade, raw_image)?;
