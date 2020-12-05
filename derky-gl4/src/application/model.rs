@@ -14,7 +14,7 @@ use glium::{
     IndexBuffer, VertexBuffer,
 };
 use log::info;
-use ultraviolet::{Vec3, Vec4};
+use ultraviolet::{Vec2, Vec3, Vec4};
 
 /// 頂点シェーダーに渡る頂点情報を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -47,13 +47,19 @@ pub fn load_obj(
             for face in &faces[..] {
                 let vertex_base = vertices.len();
                 for original_vertice in &face[..] {
+                    // Blender の出力する .obj は bottom-left が (0, 0) になるらしいので(.obj の仕様？)、
+                    // この時点で V を反転する
+                    let uv = {
+                        let original = original_vertice.1.unwrap_or_default();
+                        Vec2::new(original.x, 1.0 - original.y)
+                    };
                     vertices.push(Vertex {
                         position: original_vertice.0.into(),
                         normal: original_vertice
                             .2
                             .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
                             .into(),
-                        uv: original_vertice.1.unwrap_or_default().into(),
+                        uv: uv.into(),
                     });
                 }
                 for i in 0..(face.len() - 2) {
@@ -92,8 +98,8 @@ pub fn load_obj(
             };
 
             let dimensions = image.dimensions();
-            let raw_image = RawImage2d::from_raw_rgba_reversed(
-                image.data(),
+            let raw_image = RawImage2d::from_raw_rgba(
+                image.into_data().into_vec(),
                 (dimensions.0 as u32, dimensions.1 as u32),
             );
             let texture = Texture2d::new(facade, raw_image)?;

@@ -202,7 +202,8 @@ pub fn initialize_buffers(display: &Display) -> Result<Buffers> {
 pub fn load_exr_texture(facade: &impl Facade, filename: &str) -> Result<Texture2d> {
     let image = load_hdr_image(filename)?;
     let (width, height) = image.dimensions();
-    let raw_image = RawImage2d::from_raw_rgba_reversed(image.data(), (width as u32, height as u32));
+    let raw_image =
+        RawImage2d::from_raw_rgba(image.into_data().into_vec(), (width as u32, height as u32));
     let texture = Texture2d::with_format(
         facade,
         raw_image,

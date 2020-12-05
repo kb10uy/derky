@@ -30,5 +30,5 @@ void main() {
     float yz_angle = sign(reflection.y) * acos(dot(reflection, normalize(vec3(reflection.x, 0.0, reflection.z))));
     vec2 image_uv = vec2((xz_angle + PI) / (2.0 * PI), yz_angle / PI + 0.5);
 
-    color = vec4(texture(light_image_source, image_uv).xyz * light_image_intensity, 1.0);
+    color = vec4(texture(light_image_source, vec2(image_uv.x, 1.0 - image_uv.y)).xyz * light_image_intensity, 1.0);
 }
