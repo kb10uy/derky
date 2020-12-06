@@ -63,12 +63,12 @@ impl Texture {
         device: &Device,
         data: &ImageData<T, C>,
     ) -> Result<Texture> {
-        let texture = unsafe { Texture::create_texture(device, data)? };
-        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
         let channels = C::CHANNELS;
         let format = T::get_format(channels);
         let dimensions = data.dimensions();
+        let texture = unsafe { Texture::create_texture(device, data)? };
+        let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
+        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
@@ -140,12 +140,12 @@ impl Texture {
     pub fn load_ldr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_ldr_image(filename)?.resize_to_power_of_2();
 
-        let texture = unsafe { Texture::create_texture(device, &image)? };
-        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
         let channels = Rgba::CHANNELS;
         let format = u8::get_format(channels);
         let dimensions = image.dimensions();
+        let texture = unsafe { Texture::create_texture(device, &image)? };
+        let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
+        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
@@ -161,12 +161,12 @@ impl Texture {
     pub fn load_hdr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_hdr_image(filename)?.resize_to_power_of_2();
 
-        let texture = unsafe { Texture::create_texture(device, &image)? };
-        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
         let channels = Rgba::CHANNELS;
         let format = f32::get_format(channels);
         let dimensions = image.dimensions();
+        let texture = unsafe { Texture::create_texture(device, &image)? };
+        let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
+        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
@@ -220,7 +220,7 @@ impl Texture {
                 &mut texture as *mut *mut d3d11::ID3D11Texture2D,
             )
             .err()
-            .context("Failed to create texture")?;
+            .context("Failed to create Texture2D")?;
 
         comptrize!(texture);
         Ok(texture)
@@ -230,9 +230,10 @@ impl Texture {
     unsafe fn create_view(
         device: &Device,
         texture_ptr: *mut d3d11::ID3D11Texture2D,
+        format: dxgiformat::DXGI_FORMAT,
     ) -> Result<ComPtr<d3d11::ID3D11ShaderResourceView>> {
         let mut srv_desc = d3d11::D3D11_SHADER_RESOURCE_VIEW_DESC {
-            Format: dxgiformat::DXGI_FORMAT_R8G8B8A8_UNORM,
+            Format: format,
             ViewDimension: d3dcommon::D3D11_SRV_DIMENSION_TEXTURE2D,
             u: zeroed(),
         };
@@ -246,7 +247,7 @@ impl Texture {
                 &mut view as *mut *mut d3d11::ID3D11ShaderResourceView,
             )
             .err()
-            .context("Failed to create shader resource view")?;
+            .context("Failed to create Shader Resource View")?;
 
         comptrize!(view);
         Ok(view)
@@ -327,7 +328,7 @@ impl RenderTarget {
                 Quality: 0,
             },
             Usage: d3d11::D3D11_USAGE_DEFAULT,
-            BindFlags: d3d11::D3D11_BIND_SHADER_RESOURCE,
+            BindFlags: d3d11::D3D11_BIND_SHADER_RESOURCE | d3d11::D3D11_BIND_RENDER_TARGET,
             CPUAccessFlags: 0,
             MiscFlags: 0,
         };
@@ -396,7 +397,7 @@ impl RenderTarget {
     /// この `RenderTarget` の内容を参照する `Texture` を作成する。
     pub fn create_texture(&self, device: &Device) -> Result<Texture> {
         let texture = self.texture.clone();
-        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
+        let view = unsafe { Texture::create_view(device, texture.as_ptr(), self.format)? };
         let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {

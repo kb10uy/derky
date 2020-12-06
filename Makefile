@@ -1,6 +1,7 @@
 SHADER_DIR := derky-d3d11/shaders
 SHADERS := \
-    geometry
+    geometry \
+	screen
 INCLUDES := \
 	common.hlsli
 

@@ -49,6 +49,9 @@ pub struct Application {
     /// G-Buffer
     g_buffer: Box<[RenderTarget]>,
 
+    /// G-Buffer の `Texture`
+    g_buffer_texture: Box<[Texture]>,
+
     /// G-Buffer の `DepthStencil`
     g_buffer_ds: DepthStencil,
 }
@@ -74,6 +77,10 @@ impl Application {
         let g_buffer: Box<_> = (0..2)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))
             .collect::<Result<_>>()?;
+        let g_buffer_texture: Box<_> = g_buffer
+            .iter()
+            .map(|rt| rt.create_texture(&device))
+            .collect::<Result<_>>()?;
         let g_buffer_ds = DepthStencil::create(device, (1280, 720))?;
 
         Ok(Application {
@@ -85,10 +92,17 @@ impl Application {
             input_layout,
             matrices_buffer,
             g_buffer,
+            g_buffer_texture,
             g_buffer_ds,
         })
     }
 
+    /// G-Buffer に対応する `Texture` を返す。
+    pub fn g_buffer_textures(&self) -> &[Texture] {
+        &self.g_buffer_texture
+    }
+
+    /// 更新処理をする。
     pub fn tick(&mut self, context: &Context, delta: Duration) {
         self.elapsed += delta;
 
@@ -96,6 +110,7 @@ impl Application {
         self.matrices_buffer.update(&context, &self.matrices);
     }
 
+    /// G-Buffer への描画をする。
     pub fn draw_geometry(&mut self, context: &Context) {
         self.g_buffer_ds.clear(&context);
         for rt in &self.g_buffer[..] {
