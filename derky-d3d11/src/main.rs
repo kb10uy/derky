@@ -5,10 +5,13 @@ use crate::{
     application::{load_obj, MODEL_VERTEX_LAYOUT},
     rendering::{
         create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
-        ConstantBuffer, Topology,
+        ConstantBuffer, DepthStencil, Topology,
     },
 };
-use std::time::{Duration, Instant};
+use std::{
+    slice::from_ref,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use log::info;
@@ -40,7 +43,8 @@ fn main() -> Result<()> {
     let window_handle = window.hwnd();
 
     // ------------------------------------------------------------------------
-    let (device, context) = create_d3d11(window_handle, (1280, 720))?;
+    let (device, context, render_target) = create_d3d11(window_handle, (1280, 720))?;
+    let depth_stencil = DepthStencil::create(&device, (1280, 720))?;
     let viewport = create_viewport((1280, 720));
 
     let (vs, vs_binary) = load_vertex_shader(&device, "derky-d3d11/shaders/geometry.vso")?;
@@ -90,7 +94,9 @@ fn main() -> Result<()> {
         constants.update(&context, &matrices);
 
         let start = Instant::now();
-        context.clear();
+        render_target.clear(&context);
+        depth_stencil.clear(&context);
+        context.set_render_target(from_ref(&render_target), Some(&depth_stencil));
         context.set_viewport(&viewport);
         context.set_shaders(&input_layout, &vs, &ps);
         context.set_constant_buffer_vertex(0, &constants);

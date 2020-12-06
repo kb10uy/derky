@@ -230,3 +230,112 @@ impl Texture {
         Ok(sampler)
     }
 }
+
+/// 最終出力を含む Render Target を表す。
+pub struct RenderTarget {
+    pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
+    pub(crate) view: ComPtr<d3d11::ID3D11RenderTargetView>,
+}
+
+impl RenderTarget {
+    pub fn new(
+        texture: ComPtr<d3d11::ID3D11Texture2D>,
+        view: ComPtr<d3d11::ID3D11RenderTargetView>,
+    ) -> RenderTarget {
+        RenderTarget {
+            _texture: texture,
+            view,
+        }
+    }
+
+    pub fn clear(&self, context: &Context) {
+        unsafe {
+            context
+                .immediate_context
+                .ClearRenderTargetView(self.view.as_ptr(), &[0.0, 0.0, 0.0, 1.0]);
+        }
+    }
+}
+
+pub struct DepthStencil {
+    pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
+    pub(crate) view: ComPtr<d3d11::ID3D11DepthStencilView>,
+}
+
+impl DepthStencil {
+    pub fn create(
+        device: &ComPtr<d3d11::ID3D11Device>,
+        dimension: (u32, u32),
+    ) -> Result<DepthStencil> {
+        let format = dxgiformat::DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+        let texture = unsafe {
+            let desc = d3d11::D3D11_TEXTURE2D_DESC {
+                Width: dimension.0,
+                Height: dimension.1,
+                MipLevels: 1,
+                ArraySize: 1,
+                Format: format,
+                SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
+                    Count: 1,
+                    Quality: 0,
+                },
+                Usage: d3d11::D3D11_USAGE_DEFAULT,
+                BindFlags: d3d11::D3D11_BIND_DEPTH_STENCIL,
+                CPUAccessFlags: 0,
+                MiscFlags: 0,
+            };
+
+            let mut depth_stencil_texture = null!(d3d11::ID3D11Texture2D);
+            device
+                .CreateTexture2D(
+                    &desc,
+                    null!(d3d11::D3D11_SUBRESOURCE_DATA),
+                    &mut depth_stencil_texture as *mut *mut d3d11::ID3D11Texture2D,
+                )
+                .err()
+                .context("Failed to create Depth Stencil Texture")?;
+
+            comptrize!(depth_stencil_texture);
+            depth_stencil_texture
+        };
+
+        let view = unsafe {
+            let mut desc_ds = d3d11::D3D11_DEPTH_STENCIL_VIEW_DESC {
+                Format: format,
+                ViewDimension: d3d11::D3D11_DSV_DIMENSION_TEXTURE2D,
+                Flags: 0,
+                u: zeroed(),
+            };
+            desc_ds.u.Texture2D_mut().MipSlice = 0;
+
+            let mut depth_stencil_view = null!(d3d11::ID3D11DepthStencilView);
+            device
+                .CreateDepthStencilView(
+                    texture.as_ptr() as *mut d3d11::ID3D11Resource,
+                    &desc_ds,
+                    &mut depth_stencil_view as *mut *mut d3d11::ID3D11DepthStencilView,
+                )
+                .err()
+                .context("Failed to create Depth Stencil View")?;
+            comptrize!(depth_stencil_view);
+            depth_stencil_view
+        };
+
+        Ok(DepthStencil {
+            _texture: texture,
+            view,
+        })
+    }
+
+    pub fn clear(&self, context: &Context) {
+        unsafe {
+            context.immediate_context.ClearDepthStencilView(
+                self.view.as_ptr(),
+                d3d11::D3D11_CLEAR_DEPTH | d3d11::D3D11_CLEAR_STENCIL,
+                1.0,
+                0,
+            );
+        }
+    }
+}

@@ -3,15 +3,12 @@
 use crate::{
     comptrize, null,
     rendering::{
-        ComPtr, ConstantBuffer, D3d11Vertex, HresultErrorExt, IndexBuffer, IndexInteger, Texture,
-        Topology, VertexBuffer,
+        ComPtr, ConstantBuffer, D3d11Vertex, DepthStencil, HresultErrorExt, IndexBuffer,
+        IndexInteger, RenderTarget, Texture, Topology, VertexBuffer,
     },
 };
 
-use std::{
-    ffi::c_void,
-    mem::{size_of, zeroed},
-};
+use std::{ffi::c_void, mem::size_of};
 
 use anyhow::{Context as AnyhowContext, Result};
 use winapi::{
@@ -24,8 +21,6 @@ use winapi::{
 pub struct Context {
     pub(crate) immediate_context: ComPtr<d3d11::ID3D11DeviceContext>,
     pub(crate) swapchain: ComPtr<dxgi::IDXGISwapChain>,
-    pub(crate) render_target_view: ComPtr<d3d11::ID3D11RenderTargetView>,
-    pub(crate) depth_stencil_view: ComPtr<d3d11::ID3D11DepthStencilView>,
 }
 
 impl Drop for Context {
@@ -44,21 +39,17 @@ impl Context {
         }
     }
 
-    /// 画面を消去する。
-    pub fn clear(&self) {
+    /// 描画対象にする `RenderTarget` と `DepthStencil` をセットする。
+    pub fn set_render_target(
+        &self,
+        render_targets: &[RenderTarget],
+        depth_stencil: Option<&DepthStencil>,
+    ) {
         unsafe {
-            let rtv = self.render_target_view.as_ptr();
-            let dsv = self.depth_stencil_view.as_ptr();
+            let rtv: Vec<_> = render_targets.iter().map(|rt| rt.view.as_ptr()).collect();
+            let dsv = depth_stencil.map(|ds| ds.view.as_ptr()).unwrap_or(null!(_));
             self.immediate_context
-                .OMSetRenderTargets(1, &rtv, dsv);
-            self.immediate_context
-                .ClearRenderTargetView(rtv, &[0.0, 0.0, 0.0, 1.0]);
-            self.immediate_context.ClearDepthStencilView(
-                dsv,
-                d3d11::D3D11_CLEAR_DEPTH | d3d11::D3D11_CLEAR_STENCIL,
-                1.0,
-                0,
-            );
+                .OMSetRenderTargets(rtv.len() as u32, rtv.as_ptr(), dsv);
         }
     }
 
@@ -110,6 +101,7 @@ impl Context {
         }
     }
 
+    /// テクスチャをセットする。
     pub fn set_texture(&self, slot: u32, texture: Option<&Texture>) {
         let texture_view = texture
             .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
@@ -150,7 +142,7 @@ impl Context {
 pub fn create_d3d11(
     window_handle: *mut c_void,
     dimension: (u32, u32),
-) -> Result<(ComPtr<d3d11::ID3D11Device>, Context)> {
+) -> Result<(ComPtr<d3d11::ID3D11Device>, Context, RenderTarget)> {
     // Device, Swapchain, Immediate Context
     let (device, swapchain, immediate_context) = unsafe {
         let swapchain_desc = dxgi::DXGI_SWAP_CHAIN_DESC {
@@ -203,7 +195,7 @@ pub fn create_d3d11(
     };
 
     // Back buffer
-    let render_target_view = unsafe {
+    let render_target = unsafe {
         let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
         let mut back_buffer = null!(d3d11::ID3D11Texture2D);
 
@@ -225,58 +217,7 @@ pub fn create_d3d11(
             .context("Failed to create render target view")?;
 
         comptrize!(back_buffer, render_target_view);
-        drop(back_buffer);
-        render_target_view
-    };
-
-    // Depth Stencil View
-    let depth_stencil_view = unsafe {
-        let desc = d3d11::D3D11_TEXTURE2D_DESC {
-            Width: dimension.0,
-            Height: dimension.1,
-            MipLevels: 1,
-            ArraySize: 1,
-            Format: dxgiformat::DXGI_FORMAT_D24_UNORM_S8_UINT,
-            SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
-                Count: 1,
-                Quality: 0,
-            },
-            Usage: d3d11::D3D11_USAGE_DEFAULT,
-            BindFlags: d3d11::D3D11_BIND_DEPTH_STENCIL,
-            CPUAccessFlags: 0,
-            MiscFlags: 0,
-        };
-
-        let mut depth_stencil_texture = null!(d3d11::ID3D11Texture2D);
-        device
-            .CreateTexture2D(
-                &desc,
-                null!(d3d11::D3D11_SUBRESOURCE_DATA),
-                &mut depth_stencil_texture as *mut *mut d3d11::ID3D11Texture2D,
-            )
-            .err()
-            .context("Failed to create Depth Stencil Texture")?;
-        comptrize!(depth_stencil_texture);
-
-        let mut desc_ds = d3d11::D3D11_DEPTH_STENCIL_VIEW_DESC {
-            Format: desc.Format,
-            ViewDimension: d3d11::D3D11_DSV_DIMENSION_TEXTURE2D,
-            Flags: 0,
-            u: zeroed(),
-        };
-        desc_ds.u.Texture2D_mut().MipSlice = 0;
-
-        let mut depth_stencil_view = null!(d3d11::ID3D11DepthStencilView);
-        device
-            .CreateDepthStencilView(
-                depth_stencil_texture.as_ptr() as *mut d3d11::ID3D11Resource,
-                &desc_ds,
-                &mut depth_stencil_view as *mut *mut d3d11::ID3D11DepthStencilView,
-            )
-            .err()
-            .context("Failed to create Depth Stencil View")?;
-        comptrize!(depth_stencil_view);
-        depth_stencil_view
+        RenderTarget::new(back_buffer, render_target_view)
     };
 
     Ok((
@@ -284,9 +225,8 @@ pub fn create_d3d11(
         Context {
             immediate_context,
             swapchain,
-            render_target_view,
-            depth_stencil_view,
         },
+        render_target,
     ))
 }
 
