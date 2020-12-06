@@ -200,7 +200,7 @@ pub fn create_d3d11(
             &mut immediate_context as *mut *mut d3d11::ID3D11DeviceContext,
         )
         .err()
-        .context("Failed to create device and swapchain")?;
+        .context("Failed to create Device and Swapchain")?;
 
         comptrize!(device, immediate_context, swapchain);
         (device, swapchain, immediate_context)

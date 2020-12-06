@@ -39,7 +39,7 @@ pub fn create_input_layout(
                 &mut input_layout as *mut *mut d3d11::ID3D11InputLayout,
             )
             .err()
-            .context("Failed to create input layout")?;
+            .context("Failed to create Input Layout")?;
         comptrize!(input_layout);
         input_layout
     };
@@ -63,7 +63,7 @@ pub fn load_vertex_shader(
                 &mut shader as *mut *mut d3d11::ID3D11VertexShader,
             )
             .err()
-            .context("Failed to load vertex shader")?;
+            .context("Failed to load Vertex Shader")?;
         comptrize!(shader);
         shader
     };
@@ -84,7 +84,7 @@ pub fn load_pixel_shader(device: &Device, filename: impl AsRef<Path>) -> Result<
                 &mut shader as *mut *mut d3d11::ID3D11PixelShader,
             )
             .err()
-            .context("Failed to load pixel shader")?;
+            .context("Failed to load Pixel Shader")?;
         comptrize!(shader);
         shader
     };
@@ -107,7 +107,7 @@ pub fn load_compute_shader(
                 null!(d3d11::ID3D11ClassLinkage),
                 &mut shader as *mut *mut d3d11::ID3D11ComputeShader,
             )
-            .err().context("Failed to load compute shader")?;
+            .err().context("Failed to load Compute Shader")?;
         comptrize!(shader);
         shader
     };
