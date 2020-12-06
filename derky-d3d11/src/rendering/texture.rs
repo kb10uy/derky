@@ -233,21 +233,20 @@ impl Texture {
 
 /// 最終出力を含む Render Target を表す。
 pub struct RenderTarget {
-    pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
+    pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11RenderTargetView>,
 }
 
 impl RenderTarget {
+    /// 作成済みの `ID3D11Texture2D`, `ID3D11RenderTargetView` から `RenderTarget` を作成する。
     pub fn new(
         texture: ComPtr<d3d11::ID3D11Texture2D>,
         view: ComPtr<d3d11::ID3D11RenderTargetView>,
     ) -> RenderTarget {
-        RenderTarget {
-            _texture: texture,
-            view,
-        }
+        RenderTarget { texture, view }
     }
 
+    /// 内容を消去する。
     pub fn clear(&self, context: &Context) {
         unsafe {
             context
@@ -255,8 +254,22 @@ impl RenderTarget {
                 .ClearRenderTargetView(self.view.as_ptr(), &[0.0, 0.0, 0.0, 1.0]);
         }
     }
+
+    /// この `RenderTarget` の内容を参照する `Texture` を作成する。
+    pub fn create_texture(&self, device: &ComPtr<d3d11::ID3D11Device>) -> Result<Texture> {
+        let texture = self.texture.clone();
+        let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
+        let sampler = unsafe { Texture::create_sampler(device)? };
+
+        Ok(Texture {
+            _texture: texture,
+            view,
+            sampler,
+        })
+    }
 }
 
+/// 抽象化した `ID3D11DepthStencilView`。
 pub struct DepthStencil {
     pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11DepthStencilView>,
