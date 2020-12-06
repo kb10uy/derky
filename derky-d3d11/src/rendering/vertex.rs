@@ -2,7 +2,7 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, HresultErrorExt},
+    rendering::{ComPtr, Device, HresultErrorExt},
 };
 
 use std::ffi::c_void;
@@ -133,7 +133,7 @@ pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
 
 /// Input Layout を作成する。
 pub fn create_input_layout(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
     vertex_shader_binary: &[u8],
 ) -> Result<ComPtr<d3d11::ID3D11InputLayout>> {

@@ -2,7 +2,7 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, Context, HresultErrorExt},
+    rendering::{ComPtr, Context, Device, HresultErrorExt},
 };
 
 use std::{
@@ -11,8 +11,8 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context as AnyhowContext, Result};
-use derky::texture::{load_hdr_image, load_ldr_image, Channels, ImageData};
+use anyhow::{bail, Context as AnyhowContext, Result};
+use derky::texture::{load_hdr_image, load_ldr_image, Channels, ImageData, Rgba};
 use winapi::{
     shared::{dxgiformat, dxgitype},
     um::{d3d11, d3dcommon},
@@ -52,31 +52,75 @@ pub struct Texture {
     pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11ShaderResourceView>,
     pub(crate) sampler: ComPtr<d3d11::ID3D11SamplerState>,
+    format: dxgiformat::DXGI_FORMAT,
+    channels: usize,
+    dimensions: (usize, usize),
 }
 
 impl Texture {
+    /// `ImageData` から作成する。
     pub fn new<T: TextureElement, C: Channels>(
-        device: &ComPtr<d3d11::ID3D11Device>,
+        device: &Device,
         data: &ImageData<T, C>,
     ) -> Result<Texture> {
         let texture = unsafe { Texture::create_texture(device, data)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
+        let channels = C::CHANNELS;
+        let format = T::get_format(channels);
+        let dimensions = data.dimensions();
 
         Ok(Texture {
             _texture: texture,
             view,
             sampler,
+            format,
+            channels,
+            dimensions,
         })
     }
 
+    /// チャンネル数を取得する。
+    pub fn channels(&self) -> usize {
+        self.channels
+    }
+
+    /// 対応する `DXGI_FORMAT` を取得する。
+    pub fn format(&self) -> dxgiformat::DXGI_FORMAT {
+        self.format
+    }
+
+    /// サイズを取得する。
+    pub fn dimensions(&self) -> (usize, usize) {
+        self.dimensions
+    }
+
+    /// 画像データを更新する。
     pub fn update<T: TextureElement, C: Channels>(
         &self,
         context: &Context,
         data: &ImageData<T, C>,
-    ) {
-        let (width, height) = data.dimensions();
+    ) -> Result<()> {
         let channels = C::CHANNELS;
+        let format = T::get_format(channels);
+        let dimensions = data.dimensions();
+
+        if self.format != format {
+            bail!(
+                "Wrong image format; this instance is {}, data is {}",
+                self.format,
+                format
+            );
+        }
+        if self.dimensions != dimensions {
+            bail!(
+                "Wrong image dimensions; this instance is {:?}, data is {:?}",
+                self.dimensions,
+                dimensions
+            );
+        }
+
+        let (width, height) = dimensions;
         let row = size_of::<T>() as u32 * width as u32 * channels as u32;
         let depth = size_of::<T>() as u32 * width as u32 * height as u32 * channels as u32;
         unsafe {
@@ -89,47 +133,54 @@ impl Texture {
                 depth,
             );
         }
+        Ok(())
     }
 
     /// JPEG や PNG などの LDR テクスチャを読み込む。
-    pub fn load_ldr(
-        device: &ComPtr<d3d11::ID3D11Device>,
-        filename: impl AsRef<Path>,
-    ) -> Result<Texture> {
+    pub fn load_ldr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_ldr_image(filename)?.resize_to_power_of_2();
 
         let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
+        let channels = Rgba::CHANNELS;
+        let format = u8::get_format(channels);
+        let dimensions = image.dimensions();
 
         Ok(Texture {
             _texture: texture,
             view,
             sampler,
+            channels,
+            format,
+            dimensions,
         })
     }
 
     /// OpenEXR 形式の HDR テクスチャを読み込む。
-    pub fn load_hdr(
-        device: &ComPtr<d3d11::ID3D11Device>,
-        filename: impl AsRef<Path>,
-    ) -> Result<Texture> {
+    pub fn load_hdr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_hdr_image(filename)?.resize_to_power_of_2();
 
         let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
+        let channels = Rgba::CHANNELS;
+        let format = f32::get_format(channels);
+        let dimensions = image.dimensions();
 
         Ok(Texture {
             _texture: texture,
             view,
             sampler,
+            channels,
+            format,
+            dimensions,
         })
     }
 
     /// `ID3D11Texture2D` を作成する。
     unsafe fn create_texture<T: TextureElement, C: Channels>(
-        device: &ComPtr<d3d11::ID3D11Device>,
+        device: &Device,
         image: &ImageData<T, C>,
     ) -> Result<ComPtr<d3d11::ID3D11Texture2D>> {
         let (width, height) = image.dimensions();
@@ -177,7 +228,7 @@ impl Texture {
 
     /// `ID3D11ShaderResourceView` を作成する。
     unsafe fn create_view(
-        device: &ComPtr<d3d11::ID3D11Device>,
+        device: &Device,
         texture_ptr: *mut d3d11::ID3D11Texture2D,
     ) -> Result<ComPtr<d3d11::ID3D11ShaderResourceView>> {
         let mut srv_desc = d3d11::D3D11_SHADER_RESOURCE_VIEW_DESC {
@@ -202,9 +253,7 @@ impl Texture {
     }
 
     /// `ID3D11SamplerState` を作成する。
-    unsafe fn create_sampler(
-        device: &ComPtr<d3d11::ID3D11Device>,
-    ) -> Result<ComPtr<d3d11::ID3D11SamplerState>> {
+    unsafe fn create_sampler(device: &Device) -> Result<ComPtr<d3d11::ID3D11SamplerState>> {
         let sampler_desc = d3d11::D3D11_SAMPLER_DESC {
             Filter: d3d11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
             AddressU: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
@@ -235,15 +284,104 @@ impl Texture {
 pub struct RenderTarget {
     pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11RenderTargetView>,
+    format: dxgiformat::DXGI_FORMAT,
+    channels: usize,
+    dimensions: (usize, usize),
 }
 
 impl RenderTarget {
     /// 作成済みの `ID3D11Texture2D`, `ID3D11RenderTargetView` から `RenderTarget` を作成する。
-    pub fn new(
+    pub fn new<T: TextureElement, C: Channels>(
         texture: ComPtr<d3d11::ID3D11Texture2D>,
         view: ComPtr<d3d11::ID3D11RenderTargetView>,
+        dimensions: (usize, usize),
     ) -> RenderTarget {
-        RenderTarget { texture, view }
+        let channels = Rgba::CHANNELS;
+        let format = f32::get_format(channels);
+
+        RenderTarget {
+            texture,
+            view,
+            channels,
+            format,
+            dimensions,
+        }
+    }
+
+    pub fn create<T: TextureElement, C: Channels>(
+        device: &Device,
+        dimensions: (usize, usize),
+    ) -> Result<RenderTarget> {
+        let (width, height) = dimensions;
+        let channels = C::CHANNELS;
+        let format = T::get_format(channels);
+
+        let desc = d3d11::D3D11_TEXTURE2D_DESC {
+            Width: width as u32,
+            Height: height as u32,
+            MipLevels: 1,
+            ArraySize: 1,
+            Format: format,
+            SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
+                Count: 1,
+                Quality: 0,
+            },
+            Usage: d3d11::D3D11_USAGE_DEFAULT,
+            BindFlags: d3d11::D3D11_BIND_SHADER_RESOURCE,
+            CPUAccessFlags: 0,
+            MiscFlags: 0,
+        };
+
+        let texture = unsafe {
+            let mut texture = null!(d3d11::ID3D11Texture2D);
+            device
+                .CreateTexture2D(
+                    &desc,
+                    null!(d3d11::D3D11_SUBRESOURCE_DATA),
+                    &mut texture as *mut *mut d3d11::ID3D11Texture2D,
+                )
+                .err()
+                .context("Failed to create Render Target")?;
+            comptrize!(texture);
+            texture
+        };
+
+        let view = unsafe {
+            let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
+            device
+                .CreateRenderTargetView(
+                    texture.as_ptr() as *mut d3d11::ID3D11Resource,
+                    null!(d3d11::D3D11_RENDER_TARGET_VIEW_DESC),
+                    &mut render_target_view as *mut *mut d3d11::ID3D11RenderTargetView,
+                )
+                .err()
+                .context("Failed to create Render Target View")?;
+            comptrize!(render_target_view);
+            render_target_view
+        };
+
+        Ok(RenderTarget {
+            texture,
+            view,
+            channels,
+            format,
+            dimensions,
+        })
+    }
+
+    /// チャンネル数を取得する。
+    pub fn channels(&self) -> usize {
+        self.channels
+    }
+
+    /// 対応する `DXGI_FORMAT` を取得する。
+    pub fn format(&self) -> dxgiformat::DXGI_FORMAT {
+        self.format
+    }
+
+    /// サイズを取得する。
+    pub fn dimensions(&self) -> (usize, usize) {
+        self.dimensions
     }
 
     /// 内容を消去する。
@@ -256,7 +394,7 @@ impl RenderTarget {
     }
 
     /// この `RenderTarget` の内容を参照する `Texture` を作成する。
-    pub fn create_texture(&self, device: &ComPtr<d3d11::ID3D11Device>) -> Result<Texture> {
+    pub fn create_texture(&self, device: &Device) -> Result<Texture> {
         let texture = self.texture.clone();
         let view = unsafe { Texture::create_view(device, texture.as_ptr())? };
         let sampler = unsafe { Texture::create_sampler(device)? };
@@ -265,6 +403,9 @@ impl RenderTarget {
             _texture: texture,
             view,
             sampler,
+            channels: self.channels,
+            format: self.format,
+            dimensions: self.dimensions,
         })
     }
 }
@@ -276,16 +417,13 @@ pub struct DepthStencil {
 }
 
 impl DepthStencil {
-    pub fn create(
-        device: &ComPtr<d3d11::ID3D11Device>,
-        dimension: (u32, u32),
-    ) -> Result<DepthStencil> {
+    pub fn create(device: &Device, dimension: (usize, usize)) -> Result<DepthStencil> {
         let format = dxgiformat::DXGI_FORMAT_D24_UNORM_S8_UINT;
 
         let texture = unsafe {
             let desc = d3d11::D3D11_TEXTURE2D_DESC {
-                Width: dimension.0,
-                Height: dimension.1,
+                Width: dimension.0 as u32,
+                Height: dimension.1 as u32,
                 MipLevels: 1,
                 ArraySize: 1,
                 Format: format,

@@ -2,7 +2,7 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, HresultErrorExt},
+    rendering::{ComPtr, Device, HresultErrorExt},
 };
 
 use std::{ffi::c_void, fs::read, path::Path};
@@ -12,7 +12,7 @@ use winapi::um::d3d11;
 
 /// Vertex Shader バイナリを読み込む。
 pub fn load_vertex_shader(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     filename: impl AsRef<Path>,
 ) -> Result<(ComPtr<d3d11::ID3D11VertexShader>, Box<[u8]>)> {
     let shader_binary = read(filename)?;
@@ -36,7 +36,7 @@ pub fn load_vertex_shader(
 
 /// Pixel Shader バイナリを読み込む。
 pub fn load_pixel_shader(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     filename: impl AsRef<Path>,
 ) -> Result<ComPtr<d3d11::ID3D11PixelShader>> {
     let shader_binary = read(filename)?;
@@ -60,7 +60,7 @@ pub fn load_pixel_shader(
 
 /*
 pub fn load_compute_shader(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     filename: impl AsRef<Path>,
 ) -> Result<ComPtr<d3d11::ID3D11ComputeShader>> {
     let shader_binary = read(filename)?;

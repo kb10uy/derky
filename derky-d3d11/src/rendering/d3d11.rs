@@ -11,11 +11,15 @@ use crate::{
 use std::{ffi::c_void, mem::size_of};
 
 use anyhow::{Context as AnyhowContext, Result};
+use derky::texture::Rgba;
 use winapi::{
     shared::{dxgi, dxgiformat, dxgitype, minwindef::HINSTANCE__},
     um::{d3d11, d3dcommon},
     Interface,
 };
+
+/// `ID3D11Device` を保持する。
+pub type Device = ComPtr<d3d11::ID3D11Device>;
 
 /// Immediate Context などを保持する。
 pub struct Context {
@@ -141,14 +145,14 @@ impl Context {
 /// Direct3D 11 を初期化する。
 pub fn create_d3d11(
     window_handle: *mut c_void,
-    dimension: (u32, u32),
-) -> Result<(ComPtr<d3d11::ID3D11Device>, Context, RenderTarget)> {
+    dimension: (usize, usize),
+) -> Result<(Device, Context, RenderTarget)> {
     // Device, Swapchain, Immediate Context
     let (device, swapchain, immediate_context) = unsafe {
         let swapchain_desc = dxgi::DXGI_SWAP_CHAIN_DESC {
             BufferDesc: dxgitype::DXGI_MODE_DESC {
-                Width: dimension.0,
-                Height: dimension.1,
+                Width: dimension.0 as u32,
+                Height: dimension.1 as u32,
                 Format: dxgiformat::DXGI_FORMAT_R8G8B8A8_UNORM,
                 RefreshRate: dxgitype::DXGI_RATIONAL {
                     Numerator: 0,
@@ -206,7 +210,7 @@ pub fn create_d3d11(
                 &mut back_buffer as *mut *mut d3d11::ID3D11Texture2D as *mut *mut c_void,
             )
             .err()
-            .context("Failed to create render target view")?;
+            .context("Failed to fetch Render Target Buffer")?;
         device
             .CreateRenderTargetView(
                 back_buffer as *mut d3d11::ID3D11Resource,
@@ -214,10 +218,10 @@ pub fn create_d3d11(
                 &mut render_target_view as *mut *mut d3d11::ID3D11RenderTargetView,
             )
             .err()
-            .context("Failed to create render target view")?;
+            .context("Failed to create Render Target View")?;
 
         comptrize!(back_buffer, render_target_view);
-        RenderTarget::new(back_buffer, render_target_view)
+        RenderTarget::new::<u8, Rgba>(back_buffer, render_target_view, dimension)
     };
 
     Ok((

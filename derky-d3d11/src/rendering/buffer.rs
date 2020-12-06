@@ -2,7 +2,7 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, Context, D3d11Vertex, HresultErrorExt},
+    rendering::{ComPtr, Context, D3d11Vertex, Device, HresultErrorExt},
 };
 
 use std::{ffi::c_void, marker::PhantomData, mem::size_of, slice::from_ref};
@@ -58,7 +58,7 @@ pub struct VertexBuffer<V: D3d11Vertex> {
 
 impl<V: D3d11Vertex> VertexBuffer<V> {
     /// Vertex Buffer を作成する。
-    pub fn new(device: &ComPtr<d3d11::ID3D11Device>, vertices: &[V]) -> Result<VertexBuffer<V>> {
+    pub fn new(device: &Device, vertices: &[V]) -> Result<VertexBuffer<V>> {
         let buffer = create_buffer(
             device,
             vertices,
@@ -84,7 +84,7 @@ pub struct ConstantBuffer<T> {
 
 impl<T> ConstantBuffer<T> {
     /// 書き換え可能な Constant Buffer を作成する。
-    pub fn new(device: &ComPtr<d3d11::ID3D11Device>, initial: &T) -> Result<ConstantBuffer<T>> {
+    pub fn new(device: &Device, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
             from_ref(initial),
@@ -101,10 +101,7 @@ impl<T> ConstantBuffer<T> {
         })
     }
 
-    pub fn new_immutable(
-        device: &ComPtr<d3d11::ID3D11Device>,
-        initial: &T,
-    ) -> Result<ConstantBuffer<T>> {
+    pub fn new_immutable(device: &Device, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
             from_ref(initial),
@@ -148,7 +145,7 @@ pub struct IndexBuffer<T: IndexInteger> {
 
 impl<T: IndexInteger> IndexBuffer<T> {
     /// Index Buffer を作成する。
-    pub fn new(device: &ComPtr<d3d11::ID3D11Device>, indices: &[T]) -> Result<IndexBuffer<T>> {
+    pub fn new(device: &Device, indices: &[T]) -> Result<IndexBuffer<T>> {
         let buffer = create_buffer(
             device,
             indices,
@@ -173,7 +170,7 @@ impl<T: IndexInteger> IndexBuffer<T> {
 
 /// `ID3D11Buffer` を作成する。
 fn create_buffer<T>(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     data: &[T],
     usage: d3d11::D3D11_USAGE,
     bind: d3d11::D3D11_BIND_FLAG,

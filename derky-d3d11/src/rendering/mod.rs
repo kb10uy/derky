@@ -7,7 +7,7 @@ mod vertex;
 
 pub use buffer::{ConstantBuffer, IndexBuffer, IndexInteger, Topology, VertexBuffer};
 pub use com_support::{ComPtr, HresultErrorExt};
-pub use d3d11::{create_d3d11, create_viewport, Context};
+pub use d3d11::{create_d3d11, create_viewport, Context, Device};
 pub use shader::{load_pixel_shader, load_vertex_shader};
 pub use texture::{DepthStencil, RenderTarget, Texture, TextureElement};
 pub use vertex::{

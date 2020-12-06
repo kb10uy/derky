@@ -1,6 +1,6 @@
 use crate::{
     d3d11_vertex,
-    rendering::{ComPtr, IndexBuffer, Texture, VertexBuffer},
+    rendering::{Device, IndexBuffer, Texture, VertexBuffer},
 };
 
 use std::{
@@ -24,7 +24,7 @@ d3d11_vertex!(ModelVertex : MODEL_VERTEX_LAYOUT {
 });
 
 pub fn load_obj(
-    device: &ComPtr<d3d11::ID3D11Device>,
+    device: &Device,
     filename: impl AsRef<Path>,
 ) -> Result<Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>> {
     let transform = Mat4::from_rotation_y(PI);
