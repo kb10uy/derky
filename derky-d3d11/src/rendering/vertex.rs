@@ -1,13 +1,5 @@
 //! D3D11 の頂点関係
 
-use crate::{
-    comptrize, null,
-    rendering::{ComPtr, Device, HresultErrorExt},
-};
-
-use std::ffi::c_void;
-
-use anyhow::{Context, Result};
 use ultraviolet::{Vec2, Vec3, Vec4};
 use winapi::{shared::dxgiformat, um::d3d11};
 
@@ -130,27 +122,3 @@ pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
 
 /// 画面全体のポリゴンのインデックス配列
 pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
-
-/// Input Layout を作成する。
-pub fn create_input_layout(
-    device: &Device,
-    layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
-    vertex_shader_binary: &[u8],
-) -> Result<ComPtr<d3d11::ID3D11InputLayout>> {
-    let input_layout = unsafe {
-        let mut input_layout = null!(d3d11::ID3D11InputLayout);
-        device
-            .CreateInputLayout(
-                layouts.as_ptr(),
-                layouts.len() as u32,
-                vertex_shader_binary.as_ptr() as *const c_void,
-                vertex_shader_binary.len(),
-                &mut input_layout as *mut *mut d3d11::ID3D11InputLayout,
-            )
-            .err()
-            .context("Failed to create input layout")?;
-        comptrize!(input_layout);
-        input_layout
-    };
-    Ok(input_layout)
-}

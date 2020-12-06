@@ -1,13 +1,11 @@
 mod application;
 mod rendering;
 
-use crate::{
-    application::{load_obj, MODEL_VERTEX_LAYOUT},
-    rendering::{
-        create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
-        ConstantBuffer, DepthStencil, Topology,
-    },
+use crate::rendering::{
+    create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
+    DepthStencil, Topology,
 };
+
 use std::{
     slice::from_ref,
     time::{Duration, Instant},
@@ -15,7 +13,6 @@ use std::{
 
 use anyhow::Result;
 use log::info;
-use ultraviolet::{Mat4, Vec3, Vec4};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -23,13 +20,6 @@ use winit::{
     platform::windows::WindowExtWindows,
     window::WindowBuilder,
 };
-
-#[derive(Debug)]
-struct Matrices {
-    model: [[f32; 4]; 4],
-    view: [[f32; 4]; 4],
-    projection: [[f32; 4]; 4],
-}
 
 fn main() -> Result<()> {
     pretty_env_logger::init();
@@ -46,25 +36,6 @@ fn main() -> Result<()> {
     let (device, context, render_target) = create_d3d11(window_handle, (1280, 720))?;
     let depth_stencil = DepthStencil::create(&device, (1280, 720))?;
     let viewport = create_viewport((1280, 720));
-
-    let (vs, vs_binary) = load_vertex_shader(&device, "derky-d3d11/shaders/geometry.vso")?;
-    let ps = load_pixel_shader(&device, "derky-d3d11/shaders/geometry.pso")?;
-    let input_layout = create_input_layout(&device, &MODEL_VERTEX_LAYOUT, &vs_binary)?;
-    let model = load_obj(&device, "assets/Natsuki.obj")?;
-
-    let mut matrices = Matrices {
-        model: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0)).into(),
-        view: Mat4::look_at_lh(
-            Vec3::new(0.0, 1.0, -1.0),
-            Vec3::new(0.0, 1.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0),
-        )
-        .into(),
-        projection: perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0)
-            .transposed()
-            .into(),
-    };
-    let constants = ConstantBuffer::new(&device, &matrices)?;
 
     // ------------------------------------------------------------------------
     info!("Starting event loop");
@@ -90,9 +61,6 @@ fn main() -> Result<()> {
             last_at = Instant::now();
         }
 
-        matrices.model = Mat4::from_rotation_y(started.elapsed().as_secs_f32()).into();
-        constants.update(&context, &matrices);
-
         let start = Instant::now();
         render_target.clear(&context);
         depth_stencil.clear(&context);
@@ -117,16 +85,4 @@ fn main() -> Result<()> {
             process_time.as_secs_f32() * 1000.0
         );
     });
-}
-
-fn perspective_dx(vertical_fov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
-    let h = 1.0 / (vertical_fov / 2.0).tan();
-    let w = h / aspect;
-
-    Mat4::new(
-        Vec4::new(w, 0.0, 0.0, 0.0),
-        Vec4::new(0.0, h, 0.0, 0.0),
-        Vec4::new(0.0, 0.0, far / (far - near), -near * far / (far - near)),
-        Vec4::new(0.0, 0.0, 1.0, 0.0),
-    )
 }

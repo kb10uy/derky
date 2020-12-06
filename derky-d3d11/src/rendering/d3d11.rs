@@ -4,7 +4,8 @@ use crate::{
     comptrize, null,
     rendering::{
         ComPtr, ConstantBuffer, D3d11Vertex, DepthStencil, HresultErrorExt, IndexBuffer,
-        IndexInteger, RenderTarget, Texture, Topology, VertexBuffer,
+        IndexInteger, InputLayout, PixelShader, RenderTarget, Texture, Topology, VertexBuffer,
+        VertexShader,
     },
 };
 
@@ -17,6 +18,9 @@ use winapi::{
     um::{d3d11, d3dcommon},
     Interface,
 };
+
+/// ビューポートを表す。
+pub type Viewport = d3d11::D3D11_VIEWPORT;
 
 /// `ID3D11Device` を保持する。
 pub type Device = ComPtr<d3d11::ID3D11Device>;
@@ -60,15 +64,15 @@ impl Context {
     /// シェーダーをセットする。
     pub fn set_shaders(
         &self,
-        input_layout: &ComPtr<d3d11::ID3D11InputLayout>,
-        vertex: &ComPtr<d3d11::ID3D11VertexShader>,
-        pixel: &ComPtr<d3d11::ID3D11PixelShader>,
+        input_layout: &InputLayout,
+        vertex: &VertexShader,
+        pixel: &PixelShader,
     ) {
         unsafe {
             self.immediate_context
                 .IASetInputLayout(input_layout.as_ptr());
             self.immediate_context.VSSetShader(
-                vertex.as_ptr(),
+                vertex.0.as_ptr(),
                 &null!(d3d11::ID3D11ClassInstance),
                 0,
             );
@@ -106,7 +110,7 @@ impl Context {
     }
 
     /// テクスチャをセットする。
-    pub fn set_texture(&self, slot: u32, texture: Option<&Texture>) {
+    pub fn set_texture(&self, slot: usize, texture: Option<&Texture>) {
         let texture_view = texture
             .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
             .unwrap_or(null!(_));
@@ -114,21 +118,25 @@ impl Context {
 
         unsafe {
             self.immediate_context
-                .PSSetShaderResources(slot, 1, &texture_view);
-            self.immediate_context.PSSetSamplers(slot, 1, &sampler);
+                .PSSetShaderResources(slot as u32, 1, &texture_view);
+            self.immediate_context
+                .PSSetSamplers(slot as u32, 1, &sampler);
         }
     }
 
     /// Vertex Shader の Constant Buffer をセットする。
-    pub fn set_constant_buffer_vertex<T>(&self, slot: u32, constant_buffer: &ConstantBuffer<T>) {
+    pub fn set_constant_buffer_vertex<T>(&self, slot: usize, constant_buffer: &ConstantBuffer<T>) {
         unsafe {
-            self.immediate_context
-                .VSSetConstantBuffers(slot, 1, &constant_buffer.buffer.as_ptr());
+            self.immediate_context.VSSetConstantBuffers(
+                slot as u32,
+                1,
+                &constant_buffer.buffer.as_ptr(),
+            );
         }
     }
 
     /// ビューポートをセットする。
-    pub fn set_viewport(&self, viewport: &d3d11::D3D11_VIEWPORT) {
+    pub fn set_viewport(&self, viewport: &Viewport) {
         unsafe {
             self.immediate_context.RSSetViewports(1, viewport);
         }
@@ -234,8 +242,8 @@ pub fn create_d3d11(
     ))
 }
 
-/// 全面に描画する `D3D_VIEWPORT` を作成する。
-pub const fn create_viewport(dimension: (u32, u32)) -> d3d11::D3D11_VIEWPORT {
+/// 全面に描画する `Viewport` を作成する。
+pub const fn create_viewport(dimension: (u32, u32)) -> Viewport {
     d3d11::D3D11_VIEWPORT {
         TopLeftX: 0.0,
         TopLeftY: 0.0,
