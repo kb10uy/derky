@@ -14,7 +14,8 @@ PsInput vertex_main(VsInput input) {
 
     // <del>以下は掛ける順が逆なのでダメっぽい</del>
     // [2020-12-02 13:46] そんなことはなくて、column-major で渡しているので column-major で計算していいらしい
-    output.position = mul(projection, mul(view, mul(model, float4(input.position, 1.0))));
+    float4 position = mul(projection, mul(view, mul(model, float4(input.position, 1.0))));
+    output.position = position;
 
     output.uv = input.uv;
     return output;
@@ -22,7 +23,7 @@ PsInput vertex_main(VsInput input) {
 
 PsOutput pixel_main(PsInput input) {
     PsOutput output;
-    output.color = float4(albedo.Sample(albedoSampler, float2(input.uv.x, 1.0 - input.uv.y)).rgb, 1.0);
+    output.color = float4(albedo.Sample(albedoSampler, input.uv).rgb, 1.0);
     return output;
 }
 

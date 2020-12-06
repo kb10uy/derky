@@ -2,7 +2,7 @@
 
 use crate::{
     comptrize, null,
-    rendering::{ComPtr, HresultErrorExt},
+    rendering::{ComPtr, Context, HresultErrorExt},
 };
 
 use std::{
@@ -11,7 +11,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context as AnyhowContext, Result};
 use derky::texture::{load_hdr_image, load_ldr_image, Channels, ImageData};
 use winapi::{
     shared::{dxgiformat, dxgitype},
@@ -49,7 +49,7 @@ impl TextureElement for f32 {
 
 /// `ID3D11Texture2D`, `ID3D11ShaderResourceView`, `ID3D11SamplerState` を保持する。
 pub struct Texture {
-    pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
+    pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11ShaderResourceView>,
     pub(crate) sampler: ComPtr<d3d11::ID3D11SamplerState>,
 }
@@ -64,10 +64,31 @@ impl Texture {
         let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
-            texture,
+            _texture: texture,
             view,
             sampler,
         })
+    }
+
+    pub fn update<T: TextureElement, C: Channels>(
+        &self,
+        context: &Context,
+        data: &ImageData<T, C>,
+    ) {
+        let (width, height) = data.dimensions();
+        let channels = C::CHANNELS;
+        let row = size_of::<T>() as u32 * width as u32 * channels as u32;
+        let depth = size_of::<T>() as u32 * width as u32 * height as u32 * channels as u32;
+        unsafe {
+            context.immediate_context.UpdateSubresource(
+                self._texture.as_ptr() as *mut d3d11::ID3D11Resource,
+                0,
+                null!(d3d11::D3D11_BOX),
+                data.data().as_ptr() as *const c_void,
+                row,
+                depth,
+            );
+        }
     }
 
     /// JPEG や PNG などの LDR テクスチャを読み込む。
@@ -82,7 +103,7 @@ impl Texture {
         let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
-            texture,
+            _texture: texture,
             view,
             sampler,
         })
@@ -100,7 +121,7 @@ impl Texture {
         let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
-            texture,
+            _texture: texture,
             view,
             sampler,
         })

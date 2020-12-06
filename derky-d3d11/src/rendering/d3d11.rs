@@ -50,7 +50,7 @@ impl Context {
             let rtv = self.render_target_view.as_ptr();
             let dsv = self.depth_stencil_view.as_ptr();
             self.immediate_context
-                .OMSetRenderTargets(1, &rtv, self.depth_stencil_view.as_ptr());
+                .OMSetRenderTargets(1, &rtv, dsv);
             self.immediate_context
                 .ClearRenderTargetView(rtv, &[0.0, 0.0, 0.0, 1.0]);
             self.immediate_context.ClearDepthStencilView(
@@ -236,7 +236,7 @@ pub fn create_d3d11(
             Height: dimension.1,
             MipLevels: 1,
             ArraySize: 1,
-            Format: dxgiformat::DXGI_FORMAT_D32_FLOAT,
+            Format: dxgiformat::DXGI_FORMAT_D24_UNORM_S8_UINT,
             SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
                 Count: 1,
                 Quality: 0,
@@ -259,7 +259,7 @@ pub fn create_d3d11(
         comptrize!(depth_stencil_texture);
 
         let mut desc_ds = d3d11::D3D11_DEPTH_STENCIL_VIEW_DESC {
-            Format: dxgiformat::DXGI_FORMAT_D32_FLOAT,
+            Format: desc.Format,
             ViewDimension: d3d11::D3D11_DSV_DIMENSION_TEXTURE2D,
             Flags: 0,
             u: zeroed(),
@@ -298,6 +298,6 @@ pub const fn create_viewport(dimension: (u32, u32)) -> d3d11::D3D11_VIEWPORT {
         Width: dimension.0 as f32,
         Height: dimension.1 as f32,
         MinDepth: 0.0,
-        MaxDepth: 0.0,
+        MaxDepth: 1.0,
     }
 }

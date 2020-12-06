@@ -5,16 +5,14 @@ use crate::{
     application::{load_obj, MODEL_VERTEX_LAYOUT},
     rendering::{
         create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
-        ConstantBuffer, IndexBuffer, Texture, Topology, Vertex, VertexBuffer, SCREEN_QUAD_INDICES,
-        SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT,
+        ConstantBuffer, Topology,
     },
 };
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use derky::texture::{ImageData, Rgba};
 use log::info;
-use ultraviolet::{projection::lh_yup::perspective_wgpu_dx, Mat4, Vec3};
+use ultraviolet::{Mat4, Vec3, Vec4};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -47,40 +45,20 @@ fn main() -> Result<()> {
 
     let (vs, vs_binary) = load_vertex_shader(&device, "derky-d3d11/shaders/geometry.vso")?;
     let ps = load_pixel_shader(&device, "derky-d3d11/shaders/geometry.pso")?;
-    let input_layout = create_input_layout(&device, &VERTEX_INPUT_LAYOUT, &vs_binary)?;
-    let vb = VertexBuffer::new(&device, &SCREEN_QUAD_VERTICES)?;
-    let ib = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
-    let texture = Texture::load_ldr(&device, "assets/natsuki-clothes.png")?;
-    let texture = Texture::new::<u8, Rgba>(
-        &device,
-        &ImageData::new(
-            &[
-                0u8, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 255, 255, 0, 255,
-            ],
-            2,
-            2,
-        )?,
-    )?;
-    // let model = load_obj(&device, "assets/Natsuki.obj")?;
+    let input_layout = create_input_layout(&device, &MODEL_VERTEX_LAYOUT, &vs_binary)?;
+    let model = load_obj(&device, "assets/Natsuki.obj")?;
 
-    /*
     let mut matrices = Matrices {
         model: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0)).into(),
         view: Mat4::look_at_lh(
-            Vec3::new(0.0, 1.0, -2.0),
+            Vec3::new(0.0, 1.0, -1.0),
             Vec3::new(0.0, 1.0, 0.0),
             Vec3::new(0.0, 1.0, 0.0),
         )
         .into(),
-        // なぜ near と far が逆になっているのかは謎
-        projection: perspective_wgpu_dx(60f32.to_radians(), 16.0 / 9.0, 1024.0, 0.1).into(),
-    };
-    */
-    let mut matrices = Matrices {
-        model: Mat4::identity().into(),
-        view: Mat4::identity().into(),
-        // なぜ near と far が逆になっているのかは謎
-        projection: Mat4::identity().into(),
+        projection: perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0)
+            .transposed()
+            .into(),
     };
     let constants = ConstantBuffer::new(&device, &matrices)?;
 
@@ -108,8 +86,8 @@ fn main() -> Result<()> {
             last_at = Instant::now();
         }
 
-        // matrices.model = Mat4::from_rotation_y(started.elapsed().as_secs_f32()).into();
-        // constants.update(&context, &matrices);
+        matrices.model = Mat4::from_rotation_y(started.elapsed().as_secs_f32()).into();
+        constants.update(&context, &matrices);
 
         let start = Instant::now();
         context.clear();
@@ -117,17 +95,12 @@ fn main() -> Result<()> {
         context.set_shaders(&input_layout, &vs, &ps);
         context.set_constant_buffer_vertex(0, &constants);
 
-        context.set_texture(0, Some(&texture));
-        context.set_vertices(&vb, &ib, Topology::Triangles);
-        context.draw_with_indices(ib.len());
-
-        /*
         for ((vb, ib), texture) in model.visit() {
             context.set_texture(0, texture);
             context.set_vertices(&vb, &ib, Topology::Triangles);
             context.draw_with_indices(ib.len());
         }
-        */
+
         context.present();
         let process_time = start.elapsed();
 
@@ -138,4 +111,16 @@ fn main() -> Result<()> {
             process_time.as_secs_f32() * 1000.0
         );
     });
+}
+
+fn perspective_dx(vertical_fov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
+    let h = 1.0 / (vertical_fov / 2.0).tan();
+    let w = h / aspect;
+
+    Mat4::new(
+        Vec4::new(w, 0.0, 0.0, 0.0),
+        Vec4::new(0.0, h, 0.0, 0.0),
+        Vec4::new(0.0, 0.0, far / (far - near), -near * far / (far - near)),
+        Vec4::new(0.0, 0.0, 1.0, 0.0),
+    )
 }

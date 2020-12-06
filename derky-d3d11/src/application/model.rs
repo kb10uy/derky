@@ -27,7 +27,7 @@ pub fn load_obj(
     device: &ComPtr<d3d11::ID3D11Device>,
     filename: impl AsRef<Path>,
 ) -> Result<Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>> {
-    let transform = Mat4::from_nonuniform_scale(Vec3::new(1.0, 1.0, -1.0)); // Mat4::from_rotation_y(PI) * ;
+    let transform = Mat4::from_rotation_y(PI);
     let filename = filename.as_ref();
     let base_path = filename
         .parent()
@@ -41,23 +41,30 @@ pub fn load_obj(
             for face in &faces[..] {
                 let vertex_base = vertices.len();
                 for original_vertice in &face[..] {
+                    // 右手系モデルを想定
+                    // Blender の出力する .obj は bottom-left が (0, 0) になるらしいので(.obj の仕様？)、
+                    // この時点で V を反転する
                     let position = transform * original_vertice.0.into_homogeneous_point();
                     let normal = transform
                         * original_vertice
                             .2
                             .unwrap_or(Vec3::new(0.0, 1.0, 0.0))
                             .into_homogeneous_vector();
+                    let uv = {
+                        let original = original_vertice.1.unwrap_or_default();
+                        Vec2::new(original.x, 1.0 - original.y)
+                    };
 
                     vertices.push(ModelVertex {
                         position: position.into(),
                         normal: normal.into(),
-                        uv: original_vertice.1.unwrap_or_default().into(),
+                        uv: uv.into(),
                     });
                 }
                 for i in 0..(face.len() - 2) {
                     indices.push(vertex_base as u32);
-                    indices.push((vertex_base + i + 1) as u32);
                     indices.push((vertex_base + i + 2) as u32);
+                    indices.push((vertex_base + i + 1) as u32);
                 }
             }
             info!(
