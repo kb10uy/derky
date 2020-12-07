@@ -1,5 +1,5 @@
 /target
-/assets/*
+/assets/models/*
 *.bin
 *.vso
 *.pso

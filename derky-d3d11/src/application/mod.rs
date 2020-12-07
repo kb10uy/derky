@@ -68,7 +68,7 @@ impl Application {
             ),
             projection: perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
         };
-        let model = load_obj(&device, "assets/Natsuki.obj")?;
+        let model = load_obj(&device, "assets/models/Natsuki.obj")?;
 
         let vs_common = load_vertex_shader(device, "derky-d3d11/shaders/geometry.vso")?;
         let ps_geometry = load_pixel_shader(device, "derky-d3d11/shaders/geometry.pso")?;

@@ -124,6 +124,7 @@ pub fn load_screen_program(display: &impl Facade, basename: &str) -> Result<Prog
 pub fn intialize_window() -> (EventLoop<()>, Display) {
     let event_loop = EventLoop::new();
     let wb = WindowBuilder::new()
+        .with_title("Derky (OpenGL 4.x)")
         .with_resizable(false)
         .with_inner_size(PhysicalSize::new(1280, 720));
     let cb = ContextBuilder::new().with_srgb(false);
