@@ -1,4 +1,3 @@
-mod environment;
 mod model;
 
 use model::{load_obj, ModelVertex, MODEL_VERTEX_LAYOUT};
@@ -7,32 +6,33 @@ use std::time::Duration;
 
 use anyhow::Result;
 use derky::{
-    common::{model::Model, texture::Rgba},
+    common::{
+        environment::{Environment, View},
+        model::Model,
+        texture::Rgba,
+    },
     d3d11::{
         buffer::{ConstantBuffer, IndexBuffer, VertexBuffer},
         context::{create_viewport, Context, Device, Viewport},
         shader::{InputLayout, PixelShader, VertexShader},
-        texture::{DepthStencil, RenderTarget, Texture},
+        texture::{DepthStencil, RenderTarget, Sampler, Texture},
         vertex::Topology,
     },
 };
-use ultraviolet::{Mat4, Vec3, Vec4};
+use ultraviolet::{Mat4, Vec2, Vec3, Vec4};
 
 const BUFFER_VIEWPORT: Viewport = create_viewport((1280, 720));
 
 #[derive(Debug)]
-struct Matrices {
-    model: Mat4,
+struct ViewMatrices {
     view: Mat4,
     projection: Mat4,
 }
 
 pub struct Application {
     // 生のリソース --------------------------------------------
-    elapsed: Duration,
-
-    /// 変換行列
-    matrices: Matrices,
+    /// 環境
+    environment: Environment<Texture>,
 
     /// モデル
     model: Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>,
@@ -47,8 +47,14 @@ pub struct Application {
     /// G-Buffer 用の `PixelShader`
     ps_geometry: PixelShader,
 
-    /// `Matrices` の `ConstantBuffer`
-    matrices_buffer: ConstantBuffer<Matrices>,
+    /// 共通の `Sampler`,
+    sampler: Sampler,
+
+    /// `ViewMatrices` の `ConstantBuffer`
+    cb_view: ConstantBuffer<ViewMatrices>,
+
+    /// モデル行列の `ConstantBuffer`
+    cb_model: ConstantBuffer<Mat4>,
 
     /// G-Buffer
     g_buffer: Box<[RenderTarget]>,
@@ -62,22 +68,31 @@ pub struct Application {
 
 impl Application {
     pub fn new(device: &Device) -> Result<Application> {
-        let elapsed = Duration::default();
-        let matrices = Matrices {
-            model: Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-            view: Mat4::look_at_lh(
+        let environment = Environment::new(View::new(
+            Mat4::look_at_lh(
                 Vec3::new(0.0, 1.0, -1.0),
                 Vec3::new(0.0, 1.0, 0.0),
                 Vec3::new(0.0, 1.0, 0.0),
             ),
-            projection: perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
-        };
+            perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
+            Vec2::new(1280.0, 720.0),
+        ));
         let model = load_obj(&device, "assets/models/Natsuki.obj")?;
 
-        let vs_common = VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
-        let ps_geometry = PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
+        let vs_common =
+            VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
+        let ps_geometry =
+            PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
         let input_layout = InputLayout::create(device, &MODEL_VERTEX_LAYOUT, &vs_common.binary())?;
-        let matrices_buffer = ConstantBuffer::new(device, &matrices)?;
+        let sampler = Sampler::new(device)?;
+        let cb_view = ConstantBuffer::new(
+            device,
+            &ViewMatrices {
+                view: environment.view.view_matrix,
+                projection: environment.view.projection_matrix,
+            },
+        )?;
+        let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
         let g_buffer: Box<_> = (0..2)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))
             .collect::<Result<_>>()?;
@@ -88,13 +103,14 @@ impl Application {
         let g_buffer_ds = DepthStencil::create(device, (1280, 720))?;
 
         Ok(Application {
-            elapsed,
-            matrices,
+            environment,
             model,
             vs_common,
             ps_geometry,
             input_layout,
-            matrices_buffer,
+            sampler,
+            cb_view,
+            cb_model,
             g_buffer,
             g_buffer_texture,
             g_buffer_ds,
@@ -108,10 +124,11 @@ impl Application {
 
     /// 更新処理をする。
     pub fn tick(&mut self, context: &Context, delta: Duration) {
-        self.elapsed += delta;
-
-        self.matrices.model = Mat4::from_rotation_y(self.elapsed.as_secs_f32()).into();
-        self.matrices_buffer.update(&context, &self.matrices);
+        self.environment.tick(delta);
+        self.cb_model.update(
+            &context,
+            &Mat4::from_rotation_y(self.environment.elapsed.as_secs_f32()),
+        );
     }
 
     /// G-Buffer への描画をする。
@@ -124,7 +141,9 @@ impl Application {
         context.set_render_target(&self.g_buffer, Some(&self.g_buffer_ds));
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_shaders(&self.input_layout, &self.vs_common, &self.ps_geometry);
-        context.set_constant_buffer_vertex(0, &self.matrices_buffer);
+        context.set_constant_buffer_vertex(0, &self.cb_view);
+        context.set_constant_buffer_vertex(1, &self.cb_model);
+        context.set_sampler(0, Some(&self.sampler));
 
         for ((vb, ib), texture) in self.model.visit() {
             context.set_texture(0, texture);
