@@ -445,6 +445,7 @@ dependencies = [
  "log",
  "ultraviolet",
  "weavy_crab",
+ "winapi 0.3.9",
 ]
 
 [[package]]

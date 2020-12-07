@@ -1,8 +1,13 @@
 //! テクスチャリソース関連の型
 
 use crate::{
-    comptrize, null,
-    rendering::{ComPtr, Context, Device, HresultErrorExt},
+    common::texture::{load_hdr_image, load_ldr_image, Channels, ImageData, Rgba},
+    comptrize,
+    d3d11::{
+        com_support::{ComPtr, HresultErrorExt},
+        context::{Context, Device},
+    },
+    null,
 };
 
 use std::{
@@ -12,7 +17,6 @@ use std::{
 };
 
 use anyhow::{bail, Context as AnyhowContext, Result};
-use derky::texture::{load_hdr_image, load_ldr_image, Channels, ImageData, Rgba};
 use winapi::{
     shared::{dxgiformat, dxgitype},
     um::{d3d11, d3dcommon},

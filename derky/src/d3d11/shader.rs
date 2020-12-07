@@ -1,8 +1,12 @@
 //! シェーダー関係の操作
 
 use crate::{
-    comptrize, null,
-    rendering::{ComPtr, Device, HresultErrorExt},
+    comptrize,
+    d3d11::{
+        com_support::{ComPtr, HresultErrorExt},
+        context::Device,
+    },
+    null,
 };
 
 use std::{ffi::c_void, fs::read, path::Path};
@@ -47,10 +51,7 @@ pub fn create_input_layout(
 }
 
 /// Vertex Shader バイナリを読み込む。
-pub fn load_vertex_shader(
-    device: &Device,
-    filename: impl AsRef<Path>,
-) -> Result<VertexShader> {
+pub fn load_vertex_shader(device: &Device, filename: impl AsRef<Path>) -> Result<VertexShader> {
     let shader_binary = read(filename)?;
 
     let shader = unsafe {

@@ -28,3 +28,7 @@ version = "0.9"
 
 [dependencies.weavy_crab]
 path = "../weavy_crab"
+
+[dependencies.winapi]
+version = "0.3"
+features = ["d3d11"]

@@ -1,18 +1,21 @@
 //! Direct3D 11 の直接的な操作。
 
 use crate::{
-    comptrize, null,
-    rendering::{
-        ComPtr, ConstantBuffer, D3d11Vertex, DepthStencil, HresultErrorExt, IndexBuffer,
-        IndexInteger, InputLayout, PixelShader, RenderTarget, Sampler, Texture, Topology,
-        VertexBuffer, VertexShader,
+    common::texture::Rgba,
+    comptrize,
+    d3d11::{
+        buffer::{ConstantBuffer, IndexBuffer, IndexInteger, VertexBuffer},
+        com_support::{ComPtr, HresultErrorExt},
+        shader::{InputLayout, PixelShader, VertexShader},
+        texture::{DepthStencil, RenderTarget, Sampler, Texture},
+        vertex::{D3d11Vertex, Topology},
     },
+    null,
 };
 
 use std::{ffi::c_void, mem::size_of};
 
 use anyhow::{Context as AnyhowContext, Result};
-use derky::texture::Rgba;
 use winapi::{
     shared::{dxgi, dxgiformat, dxgitype, minwindef::HINSTANCE__},
     um::{d3d11, d3dcommon},

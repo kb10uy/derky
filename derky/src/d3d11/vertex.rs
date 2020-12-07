@@ -1,7 +1,10 @@
 //! D3D11 の頂点関係
 
 use ultraviolet::{Vec2, Vec3, Vec4};
-use winapi::{shared::dxgiformat, um::d3d11};
+use winapi::{
+    shared::dxgiformat,
+    um::{d3d11, d3dcommon},
+};
 
 /// D3D11 頂点
 pub trait D3d11Vertex {}
@@ -46,7 +49,7 @@ macro_rules! __d3d11_vertex_struct {
             $(pub $fn: $ft,)*
         }
 
-        impl $crate::rendering::D3d11Vertex for $n {}
+        impl $crate::d3d11::vertex::D3d11Vertex for $n {}
     };
 }
 
@@ -69,7 +72,7 @@ macro_rules! __d3d11_vertex_layout {
             winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
                 SemanticName: concat!($fs1, "\0").as_ptr() as *const i8,
                 SemanticIndex: $fsi1,
-                Format: <$ft1 as $crate::rendering::AsDxgiFormat>::DXGI_FORMAT,
+                Format: <$ft1 as $crate::d3d11::vertex::AsDxgiFormat>::DXGI_FORMAT,
                 InputSlot: 0,
                 AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
                 InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
@@ -79,7 +82,7 @@ macro_rules! __d3d11_vertex_layout {
                 winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
                     SemanticName: concat!($fs, "\0").as_ptr() as *const i8,
                     SemanticIndex: $fsi,
-                    Format: <$ft as $crate::rendering::AsDxgiFormat>::DXGI_FORMAT,
+                    Format: <$ft as $crate::d3d11::vertex::AsDxgiFormat>::DXGI_FORMAT,
                     InputSlot: 0,
                     AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
                     InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
@@ -122,3 +125,26 @@ pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
 
 /// 画面全体のポリゴンのインデックス配列
 pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
+
+/// Vertex Shader 入力のトポロジー
+#[derive(Debug, Clone, Copy)]
+pub enum Topology {
+    Points,
+    Lines,
+    LinesStrip,
+    Triangles,
+    TrianglesStrip,
+}
+
+impl Topology {
+    /// `D3D11_PRIMITIVE_TOPOLOGY_xxx` に変換する。
+    pub fn to_d3d11(self) -> u32 {
+        match self {
+            Topology::Points => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST,
+            Topology::Lines => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_LINELIST,
+            Topology::LinesStrip => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP,
+            Topology::Triangles => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
+            Topology::TrianglesStrip => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,
+        }
+    }
+}

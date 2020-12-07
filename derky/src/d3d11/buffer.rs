@@ -1,17 +1,19 @@
 // 各種バッファ操作
 
 use crate::{
-    comptrize, null,
-    rendering::{ComPtr, Context, D3d11Vertex, Device, HresultErrorExt},
+    comptrize,
+    d3d11::{
+        com_support::{ComPtr, HresultErrorExt},
+        context::{Context, Device},
+        vertex::D3d11Vertex,
+    },
+    null,
 };
 
 use std::{ffi::c_void, marker::PhantomData, mem::size_of, slice::from_ref};
 
 use anyhow::{Context as AnyhowContext, Result};
-use winapi::{
-    shared::dxgiformat,
-    um::{d3d11, d3dcommon},
-};
+use winapi::{shared::dxgiformat, um::d3d11};
 
 /// Index Buffer の要素に使える型が実装する trait 。
 pub trait IndexInteger {
@@ -25,29 +27,6 @@ impl IndexInteger for u16 {
 
 impl IndexInteger for u32 {
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R32_UINT;
-}
-
-/// Vertex Shader 入力のトポロジー
-#[derive(Debug, Clone, Copy)]
-pub enum Topology {
-    Points,
-    Lines,
-    LinesStrip,
-    Triangles,
-    TrianglesStrip,
-}
-
-impl Topology {
-    /// `D3D11_PRIMITIVE_TOPOLOGY_xxx` に変換する。
-    pub fn to_d3d11(self) -> u32 {
-        match self {
-            Topology::Points => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST,
-            Topology::Lines => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_LINELIST,
-            Topology::LinesStrip => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP,
-            Topology::Triangles => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
-            Topology::TrianglesStrip => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,
-        }
-    }
 }
 
 /// Vertex Buffer
