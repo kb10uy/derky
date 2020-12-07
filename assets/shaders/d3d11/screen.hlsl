@@ -1,6 +1,8 @@
 #include "common.hlsli"
 
 Texture2D albedo : register(t0);
+Texture2D world_position : register(t1);
+Texture2D world_normal : register(t2);
 
 CompositionInput vertex_main(VsInput input) {
     CompositionInput output;
@@ -12,7 +14,7 @@ CompositionInput vertex_main(VsInput input) {
 
 CompositionOutput pixel_main(CompositionInput input) {
     CompositionOutput output;
-    output.color = float4(albedo.Sample(globalSampler, input.uv).rgb, 1.0);
+    output.color = float4(world_normal.Sample(globalSampler, input.uv).rgb, 1.0);
 
     return output;
 }

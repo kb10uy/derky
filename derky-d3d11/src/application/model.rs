@@ -29,7 +29,7 @@ pub fn load_obj(
     device: &Device,
     filename: impl AsRef<Path>,
 ) -> Result<Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>> {
-    let transform = Mat4::from_rotation_y(PI);
+    let transform = Mat4::from_nonuniform_scale(Vec3::new(1.0, 1.0, -1.0));
     let filename = filename.as_ref();
     let base_path = filename
         .parent()

@@ -83,6 +83,8 @@ fn main() -> Result<()> {
         context.set_viewport(&viewport);
         let g_buffers = application.g_buffer_textures();
         context.set_texture(0, Some(&g_buffers[0]));
+        context.set_texture(1, Some(&g_buffers[1]));
+        context.set_texture(2, Some(&g_buffers[2]));
         context.set_sampler(0, Some(&sampler));
         context.set_shaders(&input_layout, &vs, &ps);
         context.set_vertices(&screen_vb, &screen_ib, Topology::Triangles);

@@ -93,7 +93,7 @@ impl Application {
             },
         )?;
         let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
-        let g_buffer: Box<_> = (0..2)
+        let g_buffer: Box<_> = (0..3)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))
             .collect::<Result<_>>()?;
         let g_buffer_texture: Box<_> = g_buffer
@@ -159,7 +159,7 @@ fn perspective_dx(vertical_fov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
     let w = h / aspect;
 
     Mat4::new(
-        Vec4::new(w, 0.0, 0.0, 0.0),
+        Vec4::new(-w, 0.0, 0.0, 0.0),
         Vec4::new(0.0, h, 0.0, 0.0),
         Vec4::new(0.0, 0.0, far / (far - near), 1.0),
         Vec4::new(0.0, 0.0, -near * far / (far - near), 0.0),
