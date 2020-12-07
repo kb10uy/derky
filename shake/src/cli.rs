@@ -6,7 +6,7 @@ use clap::Clap;
 pub struct Arguments {
     /// Subcommand
     #[clap(subcommand)]
-    subcommand: Subcommands,
+    pub subcommand: Subcommands,
 }
 
 /// Represents available subcommands.
