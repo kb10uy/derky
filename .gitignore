@@ -1,6 +1,3 @@
 /target
 /assets/models/*
-*.bin
-*.vso
-*.pso
-/shaders.deps
+/assets/shaders/d3d11-compiled/*

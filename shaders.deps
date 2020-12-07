@@ -1,0 +1,9 @@
+generated_at = "2020-12-07T13:09:49.403666900+09:00"
+
+[[dependencies]]
+file = "screen.hlsl"
+dependencies = ["common.hlsli"]
+
+[[dependencies]]
+file = "geometry.hlsl"
+dependencies = ["common.hlsli"]
