@@ -6,6 +6,7 @@ use std::{
     env::current_dir,
     io::prelude::*,
     path::Path,
+    process::ExitStatus,
     process::{Command, Stdio},
 };
 
@@ -39,6 +40,47 @@ impl Fxc {
         }
     }
 
+    pub fn compile(&self, definition: &MakefileDefinition) -> Result<ExitStatus> {
+        let mut input_path = self.input_directory.clone();
+        input_path.push(&definition.input);
+        let mut output_path = self.output_directory.clone();
+        output_path.push(&definition.output);
+
+        info!(
+            "Compiling {} (profile: {}, entrypoint: {})",
+            definition.input, definition.profile, definition.entrypoint
+        );
+        let args = [
+            // Don't output the logo, and output include information
+            "/nologo",
+            // Target profile,
+            "/T",
+            &definition.profile,
+            // Entrypoint,
+            "/E",
+            &definition.entrypoint,
+            // No output file
+            // TODO: Support for non-Windows environment
+            "/Fo",
+            output_path.as_str(),
+            // Input file
+            input_path.as_str(),
+        ];
+
+        debug!("Executing fxc with {:?}", &args);
+        let mut command = Command::new(&self.fxc_path.as_str())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .args(&args)
+            .spawn()
+            .context("Failed to spawn fxc")?;
+
+        let status = command.wait().context("Error occurred in fxc.exe")?;
+
+        Ok(status)
+    }
+
     /// Executes `fxc.exe` and search dependencies for given definition.
     pub fn search_dependencies(
         &self,
@@ -50,7 +92,7 @@ impl Fxc {
         let mut input_path = self.input_directory.clone();
         input_path.push(&definition.input);
 
-        info!("Searching dependencies for {}", input_path,);
+        info!("Searching dependencies for {}", input_path);
         let args = [
             // Don't output the logo, and output include information
             "/nologo",
