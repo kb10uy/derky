@@ -18,7 +18,6 @@ use derky::{
 };
 use log::info;
 use ultraviolet::{Mat4, Vec2, Vec3};
-use winapi::um::d3d11;
 
 d3d11_vertex!(ModelVertex : MODEL_VERTEX_LAYOUT {
     position: Vec3 => ("POSITION", 0),

@@ -11,7 +11,7 @@ use anyhow::Result;
 use derky::d3d11::{
     buffer::{IndexBuffer, VertexBuffer},
     context::{create_d3d11, create_viewport},
-    shader::{create_input_layout, load_pixel_shader, load_vertex_shader},
+    shader::{InputLayout, PixelShader, VertexShader},
     texture::{DepthStencil, Sampler},
     vertex::{Topology, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT},
 };
@@ -40,9 +40,9 @@ fn main() -> Result<()> {
     let depth_stencil = DepthStencil::create(&device, (1280, 720))?;
     let viewport = create_viewport((1280, 720));
 
-    let vs = load_vertex_shader(&device, "assets/shaders/d3d11-compiled/screen.vso")?;
-    let ps = load_pixel_shader(&device, "assets/shaders/d3d11-compiled/screen.pso")?;
-    let input_layout = create_input_layout(&device, &VERTEX_INPUT_LAYOUT, &vs.1)?;
+    let vs = VertexShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.vso")?;
+    let ps = PixelShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.pso")?;
+    let input_layout = InputLayout::create(&device, &VERTEX_INPUT_LAYOUT, &vs.binary())?;
     let screen_vb = VertexBuffer::new(&device, &SCREEN_QUAD_VERTICES)?;
     let screen_ib = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
     let sampler = Sampler::new(&device)?;

@@ -11,10 +11,7 @@ use derky::{
     d3d11::{
         buffer::{ConstantBuffer, IndexBuffer, VertexBuffer},
         context::{create_viewport, Context, Device, Viewport},
-        shader::{
-            create_input_layout, load_pixel_shader, load_vertex_shader, InputLayout, PixelShader,
-            VertexShader,
-        },
+        shader::{InputLayout, PixelShader, VertexShader},
         texture::{DepthStencil, RenderTarget, Texture},
         vertex::Topology,
     },
@@ -77,9 +74,9 @@ impl Application {
         };
         let model = load_obj(&device, "assets/models/Natsuki.obj")?;
 
-        let vs_common = load_vertex_shader(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
-        let ps_geometry = load_pixel_shader(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
-        let input_layout = create_input_layout(device, &MODEL_VERTEX_LAYOUT, &vs_common.1)?;
+        let vs_common = VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
+        let ps_geometry = PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
+        let input_layout = InputLayout::create(device, &MODEL_VERTEX_LAYOUT, &vs_common.binary())?;
         let matrices_buffer = ConstantBuffer::new(device, &matrices)?;
         let g_buffer: Box<_> = (0..2)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))

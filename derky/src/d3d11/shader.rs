@@ -45,6 +45,10 @@ impl VertexShader {
             binary: shader_binary.into_boxed_slice(),
         })
     }
+
+    pub fn binary(&self) -> &[u8] {
+        &self.binary
+    }
 }
 
 /// Pixel Shader を保持する。
