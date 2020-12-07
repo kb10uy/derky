@@ -1,7 +1,7 @@
 //! D3D11 の頂点関係
 
 use ultraviolet::{Vec2, Vec3, Vec4};
-use winapi::{
+pub use winapi::{
     shared::dxgiformat,
     um::{d3d11, d3dcommon},
 };
@@ -59,7 +59,7 @@ macro_rules! __d3d11_vertex_struct {
 macro_rules! __d3d11_vertex_layout {
     ( $iln:ident { $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } ) => {
         #[allow(dead_code)]
-        pub const $iln: [winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC; 0 $( + { stringify!($fsi); 1 } )*] =
+        pub const $iln: [$crate::d3d11::vertex::d3d11::D3D11_INPUT_ELEMENT_DESC; 0 $( + { stringify!($fsi); 1 } )*] =
             $crate::__d3d11_vertex_layout!{$($ft => ($fs, $fsi)),*}
         ;
     };
@@ -69,23 +69,23 @@ macro_rules! __d3d11_vertex_layout {
     };
     { $ft1:ty => ( $fs1:expr , $fsi1:expr ), $( $ft:ty => ( $fs:expr , $fsi:expr ) ),* } => {
         [
-            winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
+            $crate::d3d11::vertex::d3d11::D3D11_INPUT_ELEMENT_DESC {
                 SemanticName: concat!($fs1, "\0").as_ptr() as *const i8,
                 SemanticIndex: $fsi1,
                 Format: <$ft1 as $crate::d3d11::vertex::AsDxgiFormat>::DXGI_FORMAT,
                 InputSlot: 0,
-                AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-                InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
+                AlignedByteOffset: $crate::d3d11::vertex::d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
+                InputSlotClass: $crate::d3d11::vertex::d3d11::D3D11_INPUT_PER_VERTEX_DATA,
                 InstanceDataStepRate: 0,
             },
             $(
-                winapi::um::d3d11::D3D11_INPUT_ELEMENT_DESC {
+                $crate::d3d11::vertex::d3d11::D3D11_INPUT_ELEMENT_DESC {
                     SemanticName: concat!($fs, "\0").as_ptr() as *const i8,
                     SemanticIndex: $fsi,
                     Format: <$ft as $crate::d3d11::vertex::AsDxgiFormat>::DXGI_FORMAT,
                     InputSlot: 0,
-                    AlignedByteOffset: d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
-                    InputSlotClass: d3d11::D3D11_INPUT_PER_VERTEX_DATA,
+                    AlignedByteOffset: $crate::d3d11::vertex::d3d11::D3D11_APPEND_ALIGNED_ELEMENT,
+                    InputSlotClass: $crate::d3d11::vertex::d3d11::D3D11_INPUT_PER_VERTEX_DATA,
                     InstanceDataStepRate: 0,
                 }
             ),*

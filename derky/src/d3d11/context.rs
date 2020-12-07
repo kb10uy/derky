@@ -26,7 +26,9 @@ use winapi::{
 pub type Viewport = d3d11::D3D11_VIEWPORT;
 
 /// `ID3D11Device` を保持する。
-pub type Device = ComPtr<d3d11::ID3D11Device>;
+pub struct Device {
+    pub(crate) device: ComPtr<d3d11::ID3D11Device>,
+}
 
 /// Immediate Context などを保持する。
 pub struct Context {
@@ -73,14 +75,14 @@ impl Context {
     ) {
         unsafe {
             self.immediate_context
-                .IASetInputLayout(input_layout.as_ptr());
+                .IASetInputLayout(input_layout.layout.as_ptr());
             self.immediate_context.VSSetShader(
-                vertex.0.as_ptr(),
+                vertex.shader.as_ptr(),
                 &null!(d3d11::ID3D11ClassInstance),
                 0,
             );
             self.immediate_context.PSSetShader(
-                pixel.as_ptr(),
+                pixel.shader.as_ptr(),
                 &null!(d3d11::ID3D11ClassInstance),
                 0,
             );
@@ -243,7 +245,7 @@ pub fn create_d3d11(
     };
 
     Ok((
-        device,
+        Device { device },
         Context {
             immediate_context,
             swapchain,

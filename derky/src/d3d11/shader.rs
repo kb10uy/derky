@@ -15,103 +15,95 @@ use anyhow::{Context, Result};
 use winapi::um::d3d11;
 
 /// Vertex Shader を保持する。
-pub type VertexShader = (ComPtr<d3d11::ID3D11VertexShader>, Box<[u8]>);
+pub struct VertexShader {
+    pub(crate) shader: ComPtr<d3d11::ID3D11VertexShader>,
+    binary: Box<[u8]>,
+}
+
+impl VertexShader {
+    pub fn load_object(device: &Device, filename: impl AsRef<Path>) -> Result<VertexShader> {
+        let shader_binary = read(filename)?;
+
+        let shader = unsafe {
+            let mut shader = null!(d3d11::ID3D11VertexShader);
+            device
+                .device
+                .CreateVertexShader(
+                    shader_binary.as_ptr() as *const c_void,
+                    shader_binary.len(),
+                    null!(d3d11::ID3D11ClassLinkage),
+                    &mut shader as *mut *mut d3d11::ID3D11VertexShader,
+                )
+                .err()
+                .context("Failed to load Vertex Shader")?;
+            comptrize!(shader);
+            shader
+        };
+
+        Ok(VertexShader {
+            shader,
+            binary: shader_binary.into_boxed_slice(),
+        })
+    }
+}
 
 /// Pixel Shader を保持する。
-pub type PixelShader = ComPtr<d3d11::ID3D11PixelShader>;
+pub struct PixelShader {
+    pub(crate) shader: ComPtr<d3d11::ID3D11PixelShader>,
+}
+
+impl PixelShader {
+    pub fn load_object(device: &Device, filename: impl AsRef<Path>) -> Result<PixelShader> {
+        let shader_binary = read(filename)?;
+
+        let shader = unsafe {
+            let mut shader = null!(d3d11::ID3D11PixelShader);
+            device
+                .device
+                .CreatePixelShader(
+                    shader_binary.as_ptr() as *const c_void,
+                    shader_binary.len(),
+                    null!(d3d11::ID3D11ClassLinkage),
+                    &mut shader as *mut *mut d3d11::ID3D11PixelShader,
+                )
+                .err()
+                .context("Failed to load Pixel Shader")?;
+            comptrize!(shader);
+            shader
+        };
+        Ok(PixelShader { shader })
+    }
+}
 
 /// Input Layout を表す。
-pub type InputLayout = ComPtr<d3d11::ID3D11InputLayout>;
-
-// /// Compute Shader を保持する。
-// pub type ComputeShader = ComPtr<d3d11::ID3D11ComputeShader>;
-
-/// Input Layout を作成する。
-pub fn create_input_layout(
-    device: &Device,
-    layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
-    vertex_shader_binary: &[u8],
-) -> Result<InputLayout> {
-    let input_layout = unsafe {
-        let mut input_layout = null!(d3d11::ID3D11InputLayout);
-        device
-            .CreateInputLayout(
-                layouts.as_ptr(),
-                layouts.len() as u32,
-                vertex_shader_binary.as_ptr() as *const c_void,
-                vertex_shader_binary.len(),
-                &mut input_layout as *mut *mut d3d11::ID3D11InputLayout,
-            )
-            .err()
-            .context("Failed to create Input Layout")?;
-        comptrize!(input_layout);
-        input_layout
-    };
-    Ok(input_layout)
+pub struct InputLayout {
+    pub(crate) layout: ComPtr<d3d11::ID3D11InputLayout>,
 }
 
-/// Vertex Shader バイナリを読み込む。
-pub fn load_vertex_shader(device: &Device, filename: impl AsRef<Path>) -> Result<VertexShader> {
-    let shader_binary = read(filename)?;
-
-    let shader = unsafe {
-        let mut shader = null!(d3d11::ID3D11VertexShader);
-        device
-            .CreateVertexShader(
-                shader_binary.as_ptr() as *const c_void,
-                shader_binary.len(),
-                null!(d3d11::ID3D11ClassLinkage),
-                &mut shader as *mut *mut d3d11::ID3D11VertexShader,
-            )
-            .err()
-            .context("Failed to load Vertex Shader")?;
-        comptrize!(shader);
-        shader
-    };
-    Ok((shader, shader_binary.into_boxed_slice()))
+impl InputLayout {
+    pub fn create(
+        device: &Device,
+        layouts: &[d3d11::D3D11_INPUT_ELEMENT_DESC],
+        vertex_shader_binary: &[u8],
+    ) -> Result<InputLayout> {
+        let input_layout = unsafe {
+            let mut input_layout = null!(d3d11::ID3D11InputLayout);
+            device
+                .device
+                .CreateInputLayout(
+                    layouts.as_ptr(),
+                    layouts.len() as u32,
+                    vertex_shader_binary.as_ptr() as *const c_void,
+                    vertex_shader_binary.len(),
+                    &mut input_layout as *mut *mut d3d11::ID3D11InputLayout,
+                )
+                .err()
+                .context("Failed to create Input Layout")?;
+            comptrize!(input_layout);
+            input_layout
+        };
+        Ok(InputLayout {
+            layout: input_layout,
+        })
+    }
 }
-
-/// Pixel Shader バイナリを読み込む。
-pub fn load_pixel_shader(device: &Device, filename: impl AsRef<Path>) -> Result<PixelShader> {
-    let shader_binary = read(filename)?;
-
-    let shader = unsafe {
-        let mut shader = null!(d3d11::ID3D11PixelShader);
-        device
-            .CreatePixelShader(
-                shader_binary.as_ptr() as *const c_void,
-                shader_binary.len(),
-                null!(d3d11::ID3D11ClassLinkage),
-                &mut shader as *mut *mut d3d11::ID3D11PixelShader,
-            )
-            .err()
-            .context("Failed to load Pixel Shader")?;
-        comptrize!(shader);
-        shader
-    };
-    Ok(shader)
-}
-
-/*
-pub fn load_compute_shader(
-    device: &Device,
-    filename: impl AsRef<Path>,
-) -> Result<ComPtr<d3d11::ID3D11ComputeShader>> {
-    let shader_binary = read(filename)?;
-
-    let shader = unsafe {
-        let mut shader = null!(d3d11::ID3D11ComputeShader);
-        device
-            .CreateComputeShader(
-                shader_binary.as_ptr() as *const c_void,
-                shader_binary.len(),
-                null!(d3d11::ID3D11ClassLinkage),
-                &mut shader as *mut *mut d3d11::ID3D11ComputeShader,
-            )
-            .err().context("Failed to load Compute Shader")?;
-        comptrize!(shader);
-        shader
-    };
-    Ok(shader)
-}
-*/

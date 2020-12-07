@@ -211,6 +211,7 @@ impl Texture {
 
         let mut texture = null!(d3d11::ID3D11Texture2D);
         device
+            .device
             .CreateTexture2D(
                 &desc,
                 &initial,
@@ -238,6 +239,7 @@ impl Texture {
 
         let mut view = null!(d3d11::ID3D11ShaderResourceView);
         device
+            .device
             .CreateShaderResourceView(
                 texture_ptr as *mut d3d11::ID3D11Resource,
                 &srv_desc,
@@ -306,6 +308,7 @@ impl RenderTarget {
         let texture = unsafe {
             let mut texture = null!(d3d11::ID3D11Texture2D);
             device
+                .device
                 .CreateTexture2D(
                     &desc,
                     null!(d3d11::D3D11_SUBRESOURCE_DATA),
@@ -320,6 +323,7 @@ impl RenderTarget {
         let view = unsafe {
             let mut render_target_view = null!(d3d11::ID3D11RenderTargetView);
             device
+                .device
                 .CreateRenderTargetView(
                     texture.as_ptr() as *mut d3d11::ID3D11Resource,
                     null!(d3d11::D3D11_RENDER_TARGET_VIEW_DESC),
@@ -408,6 +412,7 @@ impl DepthStencil {
 
             let mut depth_stencil_texture = null!(d3d11::ID3D11Texture2D);
             device
+                .device
                 .CreateTexture2D(
                     &desc,
                     null!(d3d11::D3D11_SUBRESOURCE_DATA),
@@ -431,6 +436,7 @@ impl DepthStencil {
 
             let mut depth_stencil_view = null!(d3d11::ID3D11DepthStencilView);
             device
+                .device
                 .CreateDepthStencilView(
                     texture.as_ptr() as *mut d3d11::ID3D11Resource,
                     &desc_ds,
@@ -484,6 +490,7 @@ impl Sampler {
         let sampler = unsafe {
             let mut sampler = null!(d3d11::ID3D11SamplerState);
             device
+                .device
                 .CreateSamplerState(
                     &sampler_desc,
                     &mut sampler as *mut *mut d3d11::ID3D11SamplerState,

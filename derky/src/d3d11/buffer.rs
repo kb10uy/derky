@@ -174,6 +174,7 @@ fn create_buffer<T>(
     let mut buffer = null!(d3d11::ID3D11Buffer);
     unsafe {
         device
+            .device
             .CreateBuffer(
                 &desc,
                 &initial_data,
