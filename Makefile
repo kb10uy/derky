@@ -1,4 +1,4 @@
-SHADER_DIR := derky-d3d11/shaders
+SHADER_DIR := assets/shaders/d3d11
 SHADERS := \
     geometry \
 	screen

@@ -4,6 +4,7 @@ members = [
   "derky-gl4",
   "derky-d3d11",
   "weavy_crab",
+  "shake",
 ]
 
 # Profile overrides

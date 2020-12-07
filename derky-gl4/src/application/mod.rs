@@ -43,20 +43,20 @@ pub struct Application {
 
 impl Application {
     pub fn new(display: &Display) -> Result<Application> {
-        let model = load_obj(display, "assets/Natsuki.obj")?;
-        let model_room = load_obj(display, "assets/Room.obj")?;
+        let model = load_obj(display, "assets/models/Natsuki.obj")?;
+        let model_room = load_obj(display, "assets/models/Room.obj")?;
 
-        let program_geometry = load_program(display, "derky-gl4/shaders/geometry/geometry")?;
+        let program_geometry = load_program(display, "assets/shaders/gl4/geometry/geometry")?;
         let program_ambient_lighting =
-            load_screen_program(display, "derky-gl4/shaders/lighting/ambient")?;
+            load_screen_program(display, "assets/shaders/gl4/lighting/ambient")?;
         let program_image_lighting =
-            load_screen_program(display, "derky-gl4/shaders/lighting/image")?;
+            load_screen_program(display, "assets/shaders/gl4/lighting/image")?;
         let program_directional_lighting =
-            load_screen_program(display, "derky-gl4/shaders/lighting/directional")?;
+            load_screen_program(display, "assets/shaders/gl4/lighting/directional")?;
         let program_point_lighting =
-            load_screen_program(display, "derky-gl4/shaders/lighting/point")?;
+            load_screen_program(display, "assets/shaders/gl4/lighting/point")?;
         let program_composition =
-            load_screen_program(display, "derky-gl4/shaders/composition/composition")?;
+            load_screen_program(display, "assets/shaders/gl4/composition/composition")?;
 
         let vertices_screen = VertexBuffer::new(display, &SCREEN_QUAD_VERTICES)?;
         let indices_screen =

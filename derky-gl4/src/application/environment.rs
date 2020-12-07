@@ -84,7 +84,7 @@ pub struct Environment {
 impl Environment {
     pub fn new(facade: &impl Facade) -> Result<Environment> {
         let ambient_light = AmbientLight(Vec3::new(0.0, 0.0, 0.0));
-        let image_light = ImageLight(load_exr_texture(facade, "assets/background.exr")?, 0.5);
+        let image_light = ImageLight(load_exr_texture(facade, "assets/models/background.exr")?, 0.5);
         let directional_lights = vec![];
         let point_lights = vec![
             PointLight {

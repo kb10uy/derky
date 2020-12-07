@@ -1,2 +1,15 @@
-output_dir = "derky-d3d11/"
+[general]
+input_dir = "assets/shaders/d3d11/"
+output_dir = "assets/shaders/d3d11-compiled/"
 
+[[outputs]]
+input = "geometry.hlsl"
+output = "geometry.vso"
+profile = "vs_5_0"
+entrypoint = "vertex_main"
+
+[[outputs]]
+input = "geometry.hlsl"
+output = "geometry.pso"
+profile = "ps_5_0"
+entrypoint = "pixel_main"

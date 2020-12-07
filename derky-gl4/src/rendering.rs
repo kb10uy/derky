@@ -103,7 +103,7 @@ pub fn load_program(display: &impl Facade, basename: &str) -> Result<Program> {
 
 /// シェーダーを読み込む。
 pub fn load_screen_program(display: &impl Facade, basename: &str) -> Result<Program> {
-    let mut vertex_file = BufReader::new(File::open("derky-gl4/shaders/screen.vert")?);
+    let mut vertex_file = BufReader::new(File::open("assets/shaders/gl4/screen.vert")?);
     let mut fragment_file = BufReader::new(File::open(format!("{}.frag", basename))?);
 
     let mut vertex_shader = String::with_capacity(1024);
