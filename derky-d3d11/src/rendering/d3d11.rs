@@ -4,8 +4,8 @@ use crate::{
     comptrize, null,
     rendering::{
         ComPtr, ConstantBuffer, D3d11Vertex, DepthStencil, HresultErrorExt, IndexBuffer,
-        IndexInteger, InputLayout, PixelShader, RenderTarget, Texture, Topology, VertexBuffer,
-        VertexShader,
+        IndexInteger, InputLayout, PixelShader, RenderTarget, Sampler, Texture, Topology,
+        VertexBuffer, VertexShader,
     },
 };
 
@@ -109,16 +109,23 @@ impl Context {
         }
     }
 
-    /// テクスチャをセットする。
+    /// Texture をセットする。
     pub fn set_texture(&self, slot: usize, texture: Option<&Texture>) {
         let texture_view = texture
             .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
             .unwrap_or(null!(_));
-        let sampler = texture.map(|p| p.sampler.as_ptr()).unwrap_or(null!(_));
 
         unsafe {
             self.immediate_context
                 .PSSetShaderResources(slot as u32, 1, &texture_view);
+        }
+    }
+
+    /// Sampler をセットする。
+    pub fn set_sampler(&self, slot: usize, sampler: Option<&Sampler>) {
+        let sampler = sampler.map(|p| p.sampler.as_ptr()).unwrap_or(null!(_));
+
+        unsafe {
             self.immediate_context
                 .PSSetSamplers(slot as u32, 1, &sampler);
         }

@@ -6,7 +6,7 @@ use crate::{
     rendering::{
         create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
         DepthStencil, IndexBuffer, Topology, VertexBuffer, SCREEN_QUAD_INDICES,
-        SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT,
+        SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT, Sampler,
     },
 };
 
@@ -41,11 +41,12 @@ fn main() -> Result<()> {
     let depth_stencil = DepthStencil::create(&device, (1280, 720))?;
     let viewport = create_viewport((1280, 720));
 
-    let vs = load_vertex_shader(&device, "derky-d3d11/shaders/screen.vso")?;
-    let ps = load_pixel_shader(&device, "derky-d3d11/shaders/screen.pso")?;
+    let vs = load_vertex_shader(&device, "assets/shaders/d3d11-compiled/screen.vso")?;
+    let ps = load_pixel_shader(&device, "assets/shaders/d3d11-compiled/screen.pso")?;
     let input_layout = create_input_layout(&device, &VERTEX_INPUT_LAYOUT, &vs.1)?;
     let screen_vb = VertexBuffer::new(&device, &SCREEN_QUAD_VERTICES)?;
     let screen_ib = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
+    let sampler = Sampler::new(&device)?;
 
     let mut application = Application::new(&device)?;
 
@@ -83,6 +84,7 @@ fn main() -> Result<()> {
         context.set_viewport(&viewport);
         let g_buffers = application.g_buffer_textures();
         context.set_texture(0, Some(&g_buffers[0]));
+        context.set_sampler(0, Some(&sampler));
         context.set_shaders(&input_layout, &vs, &ps);
         context.set_vertices(&screen_vb, &screen_ib, Topology::Triangles);
         context.draw_with_indices(screen_ib.len());

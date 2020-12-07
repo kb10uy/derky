@@ -51,7 +51,6 @@ impl TextureElement for f32 {
 pub struct Texture {
     pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11ShaderResourceView>,
-    pub(crate) sampler: ComPtr<d3d11::ID3D11SamplerState>,
     format: dxgiformat::DXGI_FORMAT,
     channels: usize,
     dimensions: (usize, usize),
@@ -68,12 +67,10 @@ impl Texture {
         let dimensions = data.dimensions();
         let texture = unsafe { Texture::create_texture(device, data)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
             view,
-            sampler,
             format,
             channels,
             dimensions,
@@ -145,12 +142,10 @@ impl Texture {
         let dimensions = image.dimensions();
         let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
             view,
-            sampler,
             channels,
             format,
             dimensions,
@@ -166,12 +161,10 @@ impl Texture {
         let dimensions = image.dimensions();
         let texture = unsafe { Texture::create_texture(device, &image)? };
         let view = unsafe { Texture::create_view(device, texture.as_ptr(), format)? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
             view,
-            sampler,
             channels,
             format,
             dimensions,
@@ -251,33 +244,6 @@ impl Texture {
 
         comptrize!(view);
         Ok(view)
-    }
-
-    /// `ID3D11SamplerState` を作成する。
-    unsafe fn create_sampler(device: &Device) -> Result<ComPtr<d3d11::ID3D11SamplerState>> {
-        let sampler_desc = d3d11::D3D11_SAMPLER_DESC {
-            Filter: d3d11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
-            AddressU: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
-            AddressV: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
-            AddressW: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
-            MipLODBias: 0.0,
-            MaxAnisotropy: 1,
-            ComparisonFunc: d3d11::D3D11_COMPARISON_ALWAYS,
-            BorderColor: [0.0; 4],
-            MinLOD: 0.0,
-            MaxLOD: d3d11::D3D11_FLOAT32_MAX,
-        };
-
-        let mut sampler = null!(d3d11::ID3D11SamplerState);
-        device
-            .CreateSamplerState(
-                &sampler_desc,
-                &mut sampler as *mut *mut d3d11::ID3D11SamplerState,
-            )
-            .err()?;
-
-        comptrize!(sampler);
-        Ok(sampler)
     }
 }
 
@@ -398,12 +364,10 @@ impl RenderTarget {
     pub fn create_texture(&self, device: &Device) -> Result<Texture> {
         let texture = self.texture.clone();
         let view = unsafe { Texture::create_view(device, texture.as_ptr(), self.format)? };
-        let sampler = unsafe { Texture::create_sampler(device)? };
 
         Ok(Texture {
             _texture: texture,
             view,
-            sampler,
             channels: self.channels,
             format: self.format,
             dimensions: self.dimensions,
@@ -489,5 +453,42 @@ impl DepthStencil {
                 0,
             );
         }
+    }
+}
+
+/// `ID3D11SamplerState` をラップする。
+pub struct Sampler {
+    pub(crate) sampler: ComPtr<d3d11::ID3D11SamplerState>,
+}
+
+impl Sampler {
+    /// `ID3D11SamplerState` を作成する。
+    pub fn new(device: &Device) -> Result<Sampler> {
+        let sampler_desc = d3d11::D3D11_SAMPLER_DESC {
+            Filter: d3d11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+            AddressU: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressV: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressW: d3d11::D3D11_TEXTURE_ADDRESS_WRAP,
+            MipLODBias: 0.0,
+            MaxAnisotropy: 1,
+            ComparisonFunc: d3d11::D3D11_COMPARISON_ALWAYS,
+            BorderColor: [0.0; 4],
+            MinLOD: 0.0,
+            MaxLOD: d3d11::D3D11_FLOAT32_MAX,
+        };
+
+        let sampler = unsafe {
+            let mut sampler = null!(d3d11::ID3D11SamplerState);
+            device
+                .CreateSamplerState(
+                    &sampler_desc,
+                    &mut sampler as *mut *mut d3d11::ID3D11SamplerState,
+                )
+                .err()?;
+
+            comptrize!(sampler);
+            sampler
+        };
+        Ok(Sampler { sampler })
     }
 }

@@ -70,8 +70,8 @@ impl Application {
         };
         let model = load_obj(&device, "assets/models/Natsuki.obj")?;
 
-        let vs_common = load_vertex_shader(device, "derky-d3d11/shaders/geometry.vso")?;
-        let ps_geometry = load_pixel_shader(device, "derky-d3d11/shaders/geometry.pso")?;
+        let vs_common = load_vertex_shader(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
+        let ps_geometry = load_pixel_shader(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
         let input_layout = create_input_layout(device, &MODEL_VERTEX_LAYOUT, &vs_common.1)?;
         let matrices_buffer = ConstantBuffer::new(device, &matrices)?;
         let g_buffer: Box<_> = (0..2)

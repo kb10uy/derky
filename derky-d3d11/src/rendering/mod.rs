@@ -12,7 +12,7 @@ pub use shader::{
     create_input_layout, load_pixel_shader, load_vertex_shader, InputLayout, PixelShader,
     VertexShader,
 };
-pub use texture::{DepthStencil, RenderTarget, Texture, TextureElement};
+pub use texture::{DepthStencil, RenderTarget, Sampler, Texture, TextureElement};
 pub use vertex::{
     AsDxgiFormat, D3d11Vertex, Vertex, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES,
     VERTEX_INPUT_LAYOUT,
