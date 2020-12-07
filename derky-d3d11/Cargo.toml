@@ -15,10 +15,6 @@ version = "0.4"
 [dependencies.pretty_env_logger]
 version = "0.4"
 
-[dependencies.winapi]
-version = "0.3"
-features = ["d3d11"]
-
 [dependencies.winit]
 version = "0.23"
 

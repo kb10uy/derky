@@ -141,7 +141,7 @@ pub fn load_ldr_image(filename: impl AsRef<Path>) -> Result<ImageData<u8, Rgba>>
     let filename = filename.as_ref();
 
     debug!("Loading LDR image {:?}", filename);
-    let original_image = image::open(filename)?.into_rgba();
+    let original_image = image::open(filename)?.into_rgba8();
     let dimensions = original_image.dimensions();
     let data = original_image.into_raw().into_boxed_slice();
 
