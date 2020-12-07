@@ -2,6 +2,8 @@
 input_dir = "assets/shaders/d3d11/"
 output_dir = "assets/shaders/d3d11-compiled/"
 
+# スクリーン全体を覆うシェーダー
+
 [[outputs]]
 input = "screen.hlsl"
 output = "screen.vso"
@@ -14,7 +16,7 @@ output = "screen.pso"
 profile = "ps_5_0"
 entrypoint = "pixel_main"
 
-# G-Buffer 向け
+# G-Buffer 向けシェーダー
 
 [[outputs]]
 input = "geometry.hlsl"

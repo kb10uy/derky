@@ -14,6 +14,8 @@ pub struct Arguments {
 pub enum Subcommands {
     /// Makes all shader definitions.
     Make(MakeArguments),
+
+    /// Updates shader dependency information.
     Update(UpdateArguments),
 }
 
