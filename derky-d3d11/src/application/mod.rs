@@ -1,17 +1,24 @@
 mod environment;
 mod model;
 
-use crate::rendering::{
-    create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader, ConstantBuffer,
-    Context, DepthStencil, Device, IndexBuffer, InputLayout, PixelShader, RenderTarget, Texture,
-    Topology, VertexBuffer, VertexShader, Viewport,
-};
 use model::{load_obj, ModelVertex, MODEL_VERTEX_LAYOUT};
 
 use std::time::Duration;
 
 use anyhow::Result;
-use derky::{model::Model, texture::Rgba};
+use derky::{
+    common::{model::Model, texture::Rgba},
+    d3d11::{
+        buffer::{ConstantBuffer, IndexBuffer, VertexBuffer},
+        context::{create_viewport, Context, Device, Viewport},
+        shader::{
+            create_input_layout, load_pixel_shader, load_vertex_shader, InputLayout, PixelShader,
+            VertexShader,
+        },
+        texture::{DepthStencil, RenderTarget, Texture},
+        vertex::Topology,
+    },
+};
 use ultraviolet::{Mat4, Vec3, Vec4};
 
 const BUFFER_VIEWPORT: Viewport = create_viewport((1280, 720));

@@ -4,8 +4,10 @@ use super::material::Material;
 use std::path::{Path, PathBuf};
 
 use anyhow::{format_err, Result};
-use derky::model::Model;
-use derky::texture::{load_ldr_image, ImageData};
+use derky::common::{
+    model::Model,
+    texture::{load_ldr_image, ImageData},
+};
 use glium::{
     backend::Facade,
     implement_vertex,

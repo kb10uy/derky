@@ -98,7 +98,7 @@ macro_rules! null {
 #[macro_export]
 macro_rules! comptrize {
     ($($i:ident),* $(,)?) => { $(
-        let $i = if let Some(comptr) = ComPtr::new($i) {
+        let $i = if let Some(comptr) = $crate::d3d11::com_support::ComPtr::new($i) {
             comptr
         } else {
             anyhow::bail!("{} is NULL", stringify!($i));

@@ -1,14 +1,6 @@
 mod application;
-mod rendering;
 
-use crate::{
-    application::Application,
-    rendering::{
-        create_d3d11, create_input_layout, create_viewport, load_pixel_shader, load_vertex_shader,
-        DepthStencil, IndexBuffer, Topology, VertexBuffer, SCREEN_QUAD_INDICES,
-        SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT, Sampler,
-    },
-};
+use crate::application::Application;
 
 use std::{
     slice::from_ref,
@@ -16,6 +8,13 @@ use std::{
 };
 
 use anyhow::Result;
+use derky::d3d11::{
+    buffer::{IndexBuffer, VertexBuffer},
+    context::{create_d3d11, create_viewport},
+    shader::{create_input_layout, load_pixel_shader, load_vertex_shader},
+    texture::{DepthStencil, Sampler},
+    vertex::{Topology, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT},
+};
 use log::info;
 use winit::{
     dpi::PhysicalSize,

@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use derky::texture::load_hdr_image;
+use derky::common::texture::load_hdr_image;
 use glium::{
     backend::Facade,
     glutin::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder},

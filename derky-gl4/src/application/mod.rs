@@ -15,7 +15,7 @@ use model::{load_obj, ModelGroup};
 use std::time::Duration;
 
 use anyhow::Result;
-use derky::model::Model;
+use derky::common::model::Model;
 use glium::{
     framebuffer::{MultiOutputFrameBuffer, SimpleFrameBuffer},
     index::PrimitiveType,

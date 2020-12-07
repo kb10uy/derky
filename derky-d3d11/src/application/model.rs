@@ -1,8 +1,3 @@
-use crate::{
-    d3d11_vertex,
-    rendering::{Device, IndexBuffer, Texture, VertexBuffer},
-};
-
 use std::{
     f32::consts::PI,
     path::{Path, PathBuf},
@@ -10,8 +5,16 @@ use std::{
 
 use anyhow::{format_err, Result};
 use derky::{
-    model::Model,
-    texture::{load_ldr_image, ImageData},
+    common::{
+        model::Model,
+        texture::{load_ldr_image, ImageData},
+    },
+    d3d11::{
+        buffer::{IndexBuffer, VertexBuffer},
+        context::Device,
+        texture::Texture,
+    },
+    d3d11_vertex,
 };
 use log::info;
 use ultraviolet::{Mat4, Vec2, Vec3};
