@@ -13,6 +13,7 @@ struct VsInput {
 // Input
 struct GBufferInput {
     float4 position: SV_Position;
+    float4 world_position: COLOR0;
     float4 world_normal: NORMAL0;
     float2 uv: TEXCOORD0;
 };

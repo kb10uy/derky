@@ -1,7 +1,4 @@
-use std::{
-    f32::consts::PI,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::{format_err, Result};
 use derky::{

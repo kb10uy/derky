@@ -147,6 +147,17 @@ impl Context {
         }
     }
 
+    /// Pixel Shader の Constant Buffer をセットする。
+    pub fn set_constant_buffer_pixel<T>(&self, slot: usize, constant_buffer: &ConstantBuffer<T>) {
+        unsafe {
+            self.immediate_context.PSSetConstantBuffers(
+                slot as u32,
+                1,
+                &constant_buffer.buffer.as_ptr(),
+            );
+        }
+    }
+
     /// ビューポートをセットする。
     pub fn set_viewport(&self, viewport: &Viewport) {
         unsafe {

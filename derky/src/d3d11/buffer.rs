@@ -13,6 +13,7 @@ use crate::{
 use std::{ffi::c_void, marker::PhantomData, mem::size_of, slice::from_ref};
 
 use anyhow::{Context as AnyhowContext, Result};
+use log::debug;
 use winapi::{shared::dxgiformat, um::d3d11};
 
 /// Index Buffer の要素に使える型が実装する trait 。
@@ -156,8 +157,14 @@ fn create_buffer<T>(
     cpu_access: d3d11::D3D11_CPU_ACCESS_FLAG,
     type_string: &'static str,
 ) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
+    let byte_width = (data.len() * size_of::<T>()) as u32;
+    debug!(
+        "Creating {} Buffer; {} bytes, flags: ({}, {}, {})",
+        type_string, byte_width, usage, bind, cpu_access
+    );
+
     let desc = d3d11::D3D11_BUFFER_DESC {
-        ByteWidth: (data.len() * size_of::<T>()) as u32,
+        ByteWidth: byte_width,
         Usage: usage,
         BindFlags: bind,
         CPUAccessFlags: cpu_access,

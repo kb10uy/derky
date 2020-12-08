@@ -23,10 +23,13 @@ use ultraviolet::{Mat4, Vec2, Vec3, Vec4};
 
 const BUFFER_VIEWPORT: Viewport = create_viewport((1280, 720));
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ViewMatrices {
     view: Mat4,
     projection: Mat4,
+    view_inv: Mat4,
+    projection_inv: Mat4,
+    screen_time: Vec4,
 }
 
 pub struct Application {
@@ -85,13 +88,7 @@ impl Application {
             PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
         let input_layout = InputLayout::create(device, &MODEL_VERTEX_LAYOUT, &vs_common.binary())?;
         let sampler = Sampler::new(device)?;
-        let cb_view = ConstantBuffer::new(
-            device,
-            &ViewMatrices {
-                view: environment.view.view_matrix,
-                projection: environment.view.projection_matrix,
-            },
-        )?;
+        let cb_view = ConstantBuffer::new(device, &Default::default())?;
         let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
         let g_buffer: Box<_> = (0..3)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))
@@ -125,6 +122,8 @@ impl Application {
     /// 更新処理をする。
     pub fn tick(&mut self, context: &Context, delta: Duration) {
         self.environment.tick(delta);
+        self.cb_view
+            .update(&context, &self.generate_view_matrices());
         self.cb_model.update(
             &context,
             &Mat4::from_rotation_y(self.environment.elapsed.as_secs_f32()),
@@ -143,6 +142,8 @@ impl Application {
         context.set_shaders(&self.input_layout, &self.vs_common, &self.ps_geometry);
         context.set_constant_buffer_vertex(0, &self.cb_view);
         context.set_constant_buffer_vertex(1, &self.cb_model);
+        context.set_constant_buffer_pixel(0, &self.cb_view);
+        context.set_constant_buffer_pixel(1, &self.cb_model);
         context.set_sampler(0, Some(&self.sampler));
 
         for ((vb, ib), texture) in self.model.visit() {
@@ -151,12 +152,27 @@ impl Application {
             context.draw_with_indices(ib.len());
         }
     }
+
+    fn generate_view_matrices(&self) -> ViewMatrices {
+        ViewMatrices {
+            view: self.environment.view.view_matrix,
+            projection: self.environment.view.projection_matrix,
+            view_inv: self.environment.view.view_matrix.inversed(),
+            projection_inv: self.environment.view.projection_matrix.inversed(),
+            screen_time: Vec4::new(
+                self.environment.view.screen_dimensions.x,
+                self.environment.view.screen_dimensions.y,
+                self.environment.elapsed.as_secs_f32(),
+                0.0,
+            ),
+        }
+    }
 }
 
 /// Direct3D 用の透視投影行列を生成する。
-fn perspective_dx(vertical_fov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
+fn perspective_dx(vertical_fov: f32, aspect_ratio: f32, near: f32, far: f32) -> Mat4 {
     let h = 1.0 / (vertical_fov / 2.0).tan();
-    let w = h / aspect;
+    let w = h / aspect_ratio;
 
     Mat4::new(
         Vec4::new(-w, 0.0, 0.0, 0.0),
