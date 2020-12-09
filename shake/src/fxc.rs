@@ -4,6 +4,7 @@ use crate::data::MakefileDefinition;
 
 use std::{
     env::current_dir,
+    fs::create_dir_all,
     io::prelude::*,
     path::Path,
     process::ExitStatus,
@@ -45,6 +46,7 @@ impl Fxc {
         input_path.push(&definition.input);
         let mut output_path = self.output_directory.clone();
         output_path.push(&definition.output);
+        create_dir_all(output_path.parent().map(|p| p.as_str()).unwrap_or(""))?;
 
         info!(
             "Compiling {} (profile: {}, entrypoint: {})",
