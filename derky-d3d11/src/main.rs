@@ -2,19 +2,10 @@ mod application;
 
 use crate::application::Application;
 
-use std::{
-    slice::from_ref,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use derky::d3d11::{
-    buffer::{IndexBuffer, VertexBuffer},
-    context::{create_d3d11, create_viewport},
-    shader::{InputLayout, PixelShader, VertexShader},
-    texture::{DepthStencil, Sampler},
-    vertex::{Topology, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES, VERTEX_INPUT_LAYOUT},
-};
+use derky::d3d11::{context::create_d3d11, texture::DepthStencil};
 use log::info;
 use winit::{
     dpi::PhysicalSize,
@@ -38,18 +29,9 @@ fn main() -> Result<()> {
     // ------------------------------------------------------------------------
     let (device, context, render_target) = create_d3d11(window_handle, (1280, 720))?;
     let depth_stencil = DepthStencil::create(&device, (1280, 720))?;
-    let viewport = create_viewport((1280, 720));
-
-    let vs = VertexShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.vso")?;
-    let ps = PixelShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.pso")?;
-    let input_layout = InputLayout::create(&device, &VERTEX_INPUT_LAYOUT, &vs.binary())?;
-    let screen_vb = VertexBuffer::new(&device, &SCREEN_QUAD_VERTICES)?;
-    let screen_ib = IndexBuffer::new(&device, &SCREEN_QUAD_INDICES)?;
-    let sampler = Sampler::new(&device)?;
-
     let mut application = Application::new(&device)?;
-
     // ------------------------------------------------------------------------
+
     info!("Starting event loop");
     let frame_time = Duration::from_nanos(33_333_333);
     let mut last_at = Instant::now();
@@ -74,23 +56,22 @@ fn main() -> Result<()> {
 
         let start = Instant::now();
         // Measurement ------------------------------------
+
+        // Tick process
         application.tick(&context, delta);
+
+        // G-Buffer
         application.draw_geometry(&context);
 
-        render_target.clear(&context);
-        depth_stencil.clear(&context);
-        context.set_render_target(from_ref(&render_target), Some(&depth_stencil));
-        context.set_viewport(&viewport);
-        let g_buffers = application.g_buffer_textures();
-        context.set_texture(0, Some(&g_buffers[0]));
-        context.set_texture(1, Some(&g_buffers[1]));
-        context.set_texture(2, Some(&g_buffers[2]));
-        context.set_sampler(0, Some(&sampler));
-        context.set_shaders(&input_layout, &vs, &ps);
-        context.set_vertices(&screen_vb, &screen_ib, Topology::Triangles);
-        context.draw_with_indices(screen_ib.len());
+        // Lighting Buffer
+        application.draw_lighting(&context);
 
+        // Composition
+        application.draw_composition(&context, &render_target, &depth_stencil);
+
+        // Present the Render Target
         context.present();
+
         // Measurement ------------------------------------
         let process_time = start.elapsed();
 
