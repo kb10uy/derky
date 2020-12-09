@@ -13,7 +13,10 @@ use crate::{
     null,
 };
 
-use std::{ffi::c_void, mem::size_of};
+use std::{
+    ffi::c_void,
+    mem::{size_of, zeroed},
+};
 
 use anyhow::{Context as AnyhowContext, Result};
 use winapi::{
@@ -21,9 +24,6 @@ use winapi::{
     um::{d3d11, d3dcommon},
     Interface,
 };
-
-/// ビューポートを表す。
-pub type Viewport = d3d11::D3D11_VIEWPORT;
 
 /// `ID3D11Device` を保持する。
 pub struct Device {
@@ -63,6 +63,13 @@ impl Context {
             let dsv = depth_stencil.map(|ds| ds.view.as_ptr()).unwrap_or(null!(_));
             self.immediate_context
                 .OMSetRenderTargets(rtv.len() as u32, rtv.as_ptr(), dsv);
+        }
+    }
+
+    /// Sets a `BlendState`.
+    pub fn set_blend_state(&self, blend_state: &BlendState, factor: [f32; 4], mask: u32) {
+        unsafe {
+            self.immediate_context.OMSetBlendState(blend_state.blend_state.as_ptr(), &factor, mask);
         }
     }
 
@@ -265,6 +272,9 @@ pub fn create_d3d11(
     ))
 }
 
+/// ビューポートを表す。
+pub type Viewport = d3d11::D3D11_VIEWPORT;
+
 /// 全面に描画する `Viewport` を作成する。
 pub const fn create_viewport(dimension: (u32, u32)) -> Viewport {
     d3d11::D3D11_VIEWPORT {
@@ -274,5 +284,164 @@ pub const fn create_viewport(dimension: (u32, u32)) -> Viewport {
         Height: dimension.1 as f32,
         MinDepth: 0.0,
         MaxDepth: 1.0,
+    }
+}
+
+/// Represents an weight for BlendState.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlendWeight {
+    Zero = d3d11::D3D11_BLEND_ZERO as isize,
+    One = d3d11::D3D11_BLEND_ONE as isize,
+    SourceColor = d3d11::D3D11_BLEND_SRC_COLOR as isize,
+    OneMinusSourceColor = d3d11::D3D11_BLEND_INV_SRC_COLOR as isize,
+    SourceAlpha = d3d11::D3D11_BLEND_SRC_ALPHA as isize,
+    OneMinusSourceAlpha = d3d11::D3D11_BLEND_INV_SRC_ALPHA as isize,
+    DestinationAlpha = d3d11::D3D11_BLEND_DEST_ALPHA as isize,
+    OneMinusDestinationAlpha = d3d11::D3D11_BLEND_INV_DEST_ALPHA as isize,
+    DestinationColor = d3d11::D3D11_BLEND_DEST_COLOR as isize,
+    OneMinusDestinationColor = d3d11::D3D11_BLEND_INV_DEST_COLOR as isize,
+    SaturatedSourceAlpha = d3d11::D3D11_BLEND_SRC_ALPHA_SAT as isize,
+    BlendFactor = d3d11::D3D11_BLEND_BLEND_FACTOR as isize,
+    OneMinusBlendFactor = d3d11::D3D11_BLEND_INV_BLEND_FACTOR as isize,
+    Source1Color = d3d11::D3D11_BLEND_SRC1_COLOR as isize,
+    OneMinusSource1Color = d3d11::D3D11_BLEND_INV_SRC1_COLOR as isize,
+    Source1Alpha = d3d11::D3D11_BLEND_SRC1_ALPHA as isize,
+    OneMinusSource1Alpha = d3d11::D3D11_BLEND_INV_SRC1_ALPHA as isize,
+}
+
+/// Represents a operation for BlendState.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlendOperation {
+    Add = d3d11::D3D11_BLEND_OP_ADD as isize,
+    Subtract = d3d11::D3D11_BLEND_OP_SUBTRACT as isize,
+    SubtractInverse = d3d11::D3D11_BLEND_OP_REV_SUBTRACT as isize,
+    Mininum = d3d11::D3D11_BLEND_OP_MIN as isize,
+    Maximum = d3d11::D3D11_BLEND_OP_MAX as isize,
+}
+
+/// An abstruction for an blend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlendPair {
+    pub source: BlendWeight,
+    pub destination: BlendWeight,
+    pub operation: BlendOperation,
+}
+
+impl Default for BlendPair {
+    fn default() -> BlendPair {
+        BlendPair {
+            source: BlendWeight::One,
+            destination: BlendWeight::Zero,
+            operation: BlendOperation::Add,
+        }
+    }
+}
+
+/// Wraps `ID3D11BlendState`.
+pub struct BlendState {
+    pub(crate) blend_state: ComPtr<d3d11::ID3D11BlendState>,
+}
+
+impl BlendState {
+    /// Creates a non-independent (Shared between RenderTargets) BlendState.
+    pub fn new_combined(device: &Device, state: (BlendPair, BlendPair)) -> Result<BlendState> {
+        let rtb_desc = d3d11::D3D11_RENDER_TARGET_BLEND_DESC {
+            BlendEnable: 1,
+            SrcBlend: state.0.source as u32,
+            DestBlend: state.0.destination as u32,
+            BlendOp: state.0.operation as u32,
+            SrcBlendAlpha: state.1.source as u32,
+            DestBlendAlpha: state.1.destination as u32,
+            BlendOpAlpha: state.1.operation as u32,
+            RenderTargetWriteMask: d3d11::D3D11_COLOR_WRITE_ENABLE_ALL as u8,
+        };
+
+        let blend_state = unsafe {
+            let blend_desc = d3d11::D3D11_BLEND_DESC {
+                AlphaToCoverageEnable: 0,
+                IndependentBlendEnable: 0,
+                RenderTarget: [
+                    rtb_desc,
+                    zeroed(),
+                    zeroed(),
+                    zeroed(),
+                    zeroed(),
+                    zeroed(),
+                    zeroed(),
+                    zeroed(),
+                ],
+            };
+
+            let mut blend_state = null!(d3d11::ID3D11BlendState);
+            device
+                .device
+                .CreateBlendState(
+                    &blend_desc,
+                    &mut blend_state as *mut *mut d3d11::ID3D11BlendState,
+                )
+                .err()
+                .context("Failed to create BlendState")?;
+            comptrize!(blend_state);
+            blend_state
+        };
+
+        Ok(BlendState { blend_state })
+    }
+
+    /// Creates an independent BlendState.
+    pub fn new_independent(
+        device: &Device,
+        pairs: &[(BlendPair, BlendPair)],
+    ) -> Result<BlendState> {
+        let rtb_descs: Vec<_> = pairs
+            .iter()
+            .map(|state| d3d11::D3D11_RENDER_TARGET_BLEND_DESC {
+                BlendEnable: 1,
+                SrcBlend: state.0.source as u32,
+                DestBlend: state.0.destination as u32,
+                BlendOp: state.0.operation as u32,
+                SrcBlendAlpha: state.1.source as u32,
+                DestBlendAlpha: state.1.destination as u32,
+                BlendOpAlpha: state.1.operation as u32,
+                RenderTargetWriteMask: d3d11::D3D11_COLOR_WRITE_ENABLE_ALL as u8,
+            })
+            .collect();
+
+        let mut render_targets = unsafe {
+            [
+                zeroed(),
+                zeroed(),
+                zeroed(),
+                zeroed(),
+                zeroed(),
+                zeroed(),
+                zeroed(),
+                zeroed(),
+            ]
+        };
+
+        let rt_dest = &mut render_targets[..rtb_descs.len()];
+        rt_dest.copy_from_slice(&rtb_descs);
+
+        let blend_state = unsafe {
+            let blend_desc = d3d11::D3D11_BLEND_DESC {
+                AlphaToCoverageEnable: 0,
+                IndependentBlendEnable: 0,
+                RenderTarget: render_targets,
+            };
+
+            let mut blend_state = null!(d3d11::ID3D11BlendState);
+            device
+                .device
+                .CreateBlendState(
+                    &blend_desc,
+                    &mut blend_state as *mut *mut d3d11::ID3D11BlendState,
+                )
+                .err()
+                .context("Failed to create BlendState")?;
+            comptrize!(blend_state);
+            blend_state
+        };
+        Ok(BlendState { blend_state })
     }
 }
