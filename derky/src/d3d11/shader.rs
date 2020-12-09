@@ -1,4 +1,4 @@
-//! シェーダー関係の操作
+//! Contains types for various shaders.
 
 use crate::{
     comptrize,
@@ -14,7 +14,7 @@ use std::{ffi::c_void, fs::read, path::Path};
 use anyhow::{Context, Result};
 use winapi::um::d3d11;
 
-/// Vertex Shader を保持する。
+/// Contains a Vertex Shader.
 pub struct VertexShader {
     pub(crate) shader: ComPtr<d3d11::ID3D11VertexShader>,
     binary: Box<[u8]>,
@@ -51,7 +51,7 @@ impl VertexShader {
     }
 }
 
-/// Pixel Shader を保持する。
+/// Contains a Pixel Shader.
 pub struct PixelShader {
     pub(crate) shader: ComPtr<d3d11::ID3D11PixelShader>,
 }
@@ -79,7 +79,7 @@ impl PixelShader {
     }
 }
 
-/// Input Layout を表す。
+/// Contains a Input Layout.
 pub struct InputLayout {
     pub(crate) layout: ComPtr<d3d11::ID3D11InputLayout>,
 }
