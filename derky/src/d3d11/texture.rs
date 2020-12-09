@@ -1,4 +1,4 @@
-//! テクスチャリソース関連の型
+//! Contains types of textures.
 
 use crate::{
     common::texture::{load_hdr_image, load_ldr_image, Channels, ImageData, Rgba},
@@ -22,9 +22,9 @@ use winapi::{
     um::{d3d11, d3dcommon},
 };
 
-/// テクスチャのピクセル要素が実装するトレイト。
+/// Indicates that this type is available for elements of texels.
 pub trait TextureElement: 'static + Copy {
-    /// チャンネル数に対応する `DXGI_FORMAT` を取得する。
+    /// Returns `DXGI_FORMAT` corresponds to given channel count.
     fn get_format(channels: usize) -> dxgiformat::DXGI_FORMAT;
 }
 
@@ -51,7 +51,7 @@ impl TextureElement for f32 {
     }
 }
 
-/// `ID3D11Texture2D`, `ID3D11ShaderResourceView`, `ID3D11SamplerState` を保持する。
+/// Contains `ID3D11Texture2D`, `ID3D11ShaderResourceView`, and `ID3D11SamplerState`.
 pub struct Texture {
     pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11ShaderResourceView>,
@@ -61,7 +61,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    /// `ImageData` から作成する。
+    /// Creates a `Texture` from `ImageData`.
     pub fn new<T: TextureElement, C: Channels>(
         device: &Device,
         data: &ImageData<T, C>,
@@ -81,22 +81,22 @@ impl Texture {
         })
     }
 
-    /// チャンネル数を取得する。
+    /// Returns channel count.
     pub fn channels(&self) -> usize {
         self.channels
     }
 
-    /// 対応する `DXGI_FORMAT` を取得する。
+    /// Returns format.
     pub fn format(&self) -> dxgiformat::DXGI_FORMAT {
         self.format
     }
 
-    /// サイズを取得する。
+    /// Returns dimensions.
     pub fn dimensions(&self) -> (usize, usize) {
         self.dimensions
     }
 
-    /// 画像データを更新する。
+    /// Updats the image data.
     pub fn update<T: TextureElement, C: Channels>(
         &self,
         context: &Context,
@@ -137,7 +137,7 @@ impl Texture {
         Ok(())
     }
 
-    /// JPEG や PNG などの LDR テクスチャを読み込む。
+    /// Loads and creates a texture from LDR image file (JPEG, PNG, etc.).
     pub fn load_ldr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_ldr_image(filename)?.resize_to_power_of_2();
 
@@ -156,7 +156,7 @@ impl Texture {
         })
     }
 
-    /// OpenEXR 形式の HDR テクスチャを読み込む。
+    /// Loads and creates a texture from HDR image file (OpenEXR only).
     pub fn load_hdr(device: &Device, filename: impl AsRef<Path>) -> Result<Texture> {
         let image = load_hdr_image(filename)?.resize_to_power_of_2();
 
@@ -175,7 +175,7 @@ impl Texture {
         })
     }
 
-    /// `ID3D11Texture2D` を作成する。
+    /// Creates a `ID3D11Texture2D`.
     unsafe fn create_texture<T: TextureElement, C: Channels>(
         device: &Device,
         image: &ImageData<T, C>,
@@ -224,7 +224,7 @@ impl Texture {
         Ok(texture)
     }
 
-    /// `ID3D11ShaderResourceView` を作成する。
+    /// Creates a `ID3D11ShaderResourceView`.
     unsafe fn create_view(
         device: &Device,
         texture_ptr: *mut d3d11::ID3D11Texture2D,
@@ -253,7 +253,7 @@ impl Texture {
     }
 }
 
-/// 最終出力を含む Render Target を表す。
+/// Represents a Render Target (including Swapchain's one).
 pub struct RenderTarget {
     pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11RenderTargetView>,
@@ -263,7 +263,7 @@ pub struct RenderTarget {
 }
 
 impl RenderTarget {
-    /// 作成済みの `ID3D11Texture2D`, `ID3D11RenderTargetView` から `RenderTarget` を作成する。
+    /// Creates a `RenderTarget` from existing `ID3D11Texture2D`, `ID3D11RenderTargetView`.
     pub fn new<T: TextureElement, C: Channels>(
         texture: ComPtr<d3d11::ID3D11Texture2D>,
         view: ComPtr<d3d11::ID3D11RenderTargetView>,
@@ -344,22 +344,22 @@ impl RenderTarget {
         })
     }
 
-    /// チャンネル数を取得する。
+    /// Returns channels count.
     pub fn channels(&self) -> usize {
         self.channels
     }
 
-    /// 対応する `DXGI_FORMAT` を取得する。
+    /// Returns `DXGI_FORMAT`.
     pub fn format(&self) -> dxgiformat::DXGI_FORMAT {
         self.format
     }
 
-    /// サイズを取得する。
+    /// Returns dimensions.
     pub fn dimensions(&self) -> (usize, usize) {
         self.dimensions
     }
 
-    /// 内容を消去する。
+    /// Clears the content.
     pub fn clear(&self, context: &Context) {
         unsafe {
             context
@@ -368,7 +368,7 @@ impl RenderTarget {
         }
     }
 
-    /// この `RenderTarget` の内容を参照する `Texture` を作成する。
+    /// Creates a `Texture` referencing this Render Target.
     pub fn create_texture(&self, device: &Device) -> Result<Texture> {
         let texture = self.texture.clone();
         let view = unsafe { Texture::create_view(device, texture.as_ptr(), self.format)? };
@@ -383,7 +383,7 @@ impl RenderTarget {
     }
 }
 
-/// 抽象化した `ID3D11DepthStencilView`。
+/// An abstraction for `ID3D11DepthStencilView`。
 pub struct DepthStencil {
     pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11DepthStencilView>,
@@ -466,13 +466,13 @@ impl DepthStencil {
     }
 }
 
-/// `ID3D11SamplerState` をラップする。
+/// Contains a `ID3D11SamplerState`.
 pub struct Sampler {
     pub(crate) sampler: ComPtr<d3d11::ID3D11SamplerState>,
 }
 
 impl Sampler {
-    /// `ID3D11SamplerState` を作成する。
+    /// Creates a `ID3D11SamplerState`.
     pub fn new(device: &Device) -> Result<Sampler> {
         let sampler_desc = d3d11::D3D11_SAMPLER_DESC {
             Filter: d3d11::D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
