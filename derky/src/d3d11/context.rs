@@ -1,4 +1,4 @@
-//! Direct3D 11 の直接的な操作。
+//! Direct3D 11 operations.
 
 use crate::{
     common::texture::Rgba,
@@ -25,12 +25,12 @@ use winapi::{
     Interface,
 };
 
-/// `ID3D11Device` を保持する。
+/// Contains `ID3D11Device`.
 pub struct Device {
     pub(crate) device: ComPtr<d3d11::ID3D11Device>,
 }
 
-/// Immediate Context などを保持する。
+/// Contains the Immediate Context and the Swapchain.
 pub struct Context {
     pub(crate) immediate_context: ComPtr<d3d11::ID3D11DeviceContext>,
     pub(crate) swapchain: ComPtr<dxgi::IDXGISwapChain>,
@@ -45,14 +45,14 @@ impl Drop for Context {
 }
 
 impl Context {
-    /// 画面を表示する。
+    /// Calls `Present()`.
     pub fn present(&self) {
         unsafe {
             self.swapchain.Present(0, 0);
         }
     }
 
-    /// 描画対象にする `RenderTarget` と `DepthStencil` をセットする。
+    /// Sets `RenderTarget`s and `DepthStencil`.
     pub fn set_render_target(
         &self,
         render_targets: &[RenderTarget],
@@ -73,7 +73,7 @@ impl Context {
         }
     }
 
-    /// シェーダーをセットする。
+    /// Sets Shaders and `InputLayout`.
     pub fn set_shaders(
         &self,
         input_layout: &InputLayout,
@@ -96,7 +96,7 @@ impl Context {
         }
     }
 
-    /// Vertex Buffer, Index Buffer をセットする。
+    /// Set `VertexBuffer` and `IndexBuffer`.
     pub fn set_vertices<V: D3d11Vertex, I: IndexInteger>(
         &self,
         vertex_buffer: &VertexBuffer<V>,
@@ -121,7 +121,7 @@ impl Context {
         }
     }
 
-    /// Texture をセットする。
+    /// Sets or releases `Texture`.
     pub fn set_texture(&self, slot: usize, texture: Option<&Texture>) {
         let texture_view = texture
             .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
@@ -133,7 +133,7 @@ impl Context {
         }
     }
 
-    /// Sampler をセットする。
+    /// Sets `Sampler`.
     pub fn set_sampler(&self, slot: usize, sampler: Option<&Sampler>) {
         let sampler = sampler.map(|p| p.sampler.as_ptr()).unwrap_or(null!(_));
 
@@ -143,7 +143,7 @@ impl Context {
         }
     }
 
-    /// Vertex Shader の Constant Buffer をセットする。
+    /// Sets `ConstantBuffer` for Vertex Shader.
     pub fn set_constant_buffer_vertex<T>(&self, slot: usize, constant_buffer: &ConstantBuffer<T>) {
         unsafe {
             self.immediate_context.VSSetConstantBuffers(
@@ -154,7 +154,7 @@ impl Context {
         }
     }
 
-    /// Pixel Shader の Constant Buffer をセットする。
+    /// Sets `ConstantBuffer` for Pixel Shader.
     pub fn set_constant_buffer_pixel<T>(&self, slot: usize, constant_buffer: &ConstantBuffer<T>) {
         unsafe {
             self.immediate_context.PSSetConstantBuffers(
@@ -165,14 +165,14 @@ impl Context {
         }
     }
 
-    /// ビューポートをセットする。
+    /// Sets `Viewport`.
     pub fn set_viewport(&self, viewport: &Viewport) {
         unsafe {
             self.immediate_context.RSSetViewports(1, viewport);
         }
     }
 
-    /// セットされている Vertex Buffer と Index Bufferで描画する。
+    /// Draws with set Vertex Buffer and Index Buffer.
     pub fn draw_with_indices(&self, indices: usize) {
         unsafe {
             self.immediate_context.DrawIndexed(indices as u32, 0, 0);
@@ -180,7 +180,7 @@ impl Context {
     }
 }
 
-/// Direct3D 11 を初期化する。
+/// Initializes and creates Direct3D 11 device.
 pub fn create_d3d11(
     window_handle: *mut c_void,
     dimension: (usize, usize),
@@ -272,10 +272,10 @@ pub fn create_d3d11(
     ))
 }
 
-/// ビューポートを表す。
+/// Represents a viewport.
 pub type Viewport = d3d11::D3D11_VIEWPORT;
 
-/// 全面に描画する `Viewport` を作成する。
+/// Creates a `Viewport` that draws the whole screen.
 pub const fn create_viewport(dimension: (u32, u32)) -> Viewport {
     d3d11::D3D11_VIEWPORT {
         TopLeftX: 0.0,
