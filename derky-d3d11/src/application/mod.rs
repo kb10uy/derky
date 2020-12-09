@@ -248,6 +248,7 @@ impl Application {
         for (index, textures) in self.g_buffer_texture.iter().enumerate() {
             context.set_texture(index, Some(textures));
         }
+        context.set_texture(5, Some(&self.lighting_buffer_texture));
         context.set_sampler(0, Some(&self.sampler));
         context.set_shaders(
             &self.input_layout,
