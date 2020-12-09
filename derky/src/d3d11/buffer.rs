@@ -1,4 +1,4 @@
-// 各種バッファ操作
+//! Contains types for any Buffer.
 
 use crate::{
     comptrize,
@@ -16,9 +16,9 @@ use anyhow::{Context as AnyhowContext, Result};
 use log::debug;
 use winapi::{shared::dxgiformat, um::d3d11};
 
-/// Index Buffer の要素に使える型が実装する trait 。
+/// Inditicates that this type is available for Index Buffer.
 pub trait IndexInteger {
-    /// DXGI_FORMAT 定数を返す。
+    /// `DXGI_FORMAT` for this type
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT;
 }
 
@@ -30,14 +30,14 @@ impl IndexInteger for u32 {
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R32_UINT;
 }
 
-/// Vertex Buffer
+/// Represents a Vertex Buffer.
 pub struct VertexBuffer<V: D3d11Vertex> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
     inner_type: PhantomData<fn() -> V>,
 }
 
 impl<V: D3d11Vertex> VertexBuffer<V> {
-    /// Vertex Buffer を作成する。
+    /// Creates a new Vertex Buffer from vertex slice.
     pub fn new(device: &Device, vertices: &[V]) -> Result<VertexBuffer<V>> {
         let buffer = create_buffer(
             device,
@@ -55,7 +55,7 @@ impl<V: D3d11Vertex> VertexBuffer<V> {
     }
 }
 
-/// 型付き Constant Buffer
+/// Represents a typed Constant Buffer.
 pub struct ConstantBuffer<T> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
     modifiable: bool,
@@ -63,7 +63,7 @@ pub struct ConstantBuffer<T> {
 }
 
 impl<T> ConstantBuffer<T> {
-    /// 書き換え可能な Constant Buffer を作成する。
+    /// Creates a mutable Constant Buffer.
     pub fn new(device: &Device, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
@@ -81,6 +81,7 @@ impl<T> ConstantBuffer<T> {
         })
     }
 
+    /// Creates an immutable Constant Buffer.
     pub fn new_immutable(device: &Device, initial: &T) -> Result<ConstantBuffer<T>> {
         let buffer = create_buffer(
             device,
@@ -98,7 +99,7 @@ impl<T> ConstantBuffer<T> {
         })
     }
 
-    /// 内容を更新する。
+    /// Updates the data.
     pub fn update(&self, context: &Context, data: &T) {
         if !self.modifiable {
             return;
@@ -116,7 +117,7 @@ impl<T> ConstantBuffer<T> {
     }
 }
 
-/// 型付きの Index Buffer
+/// Represents a Index Buffer.
 pub struct IndexBuffer<T: IndexInteger> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
     length: usize,
@@ -124,7 +125,7 @@ pub struct IndexBuffer<T: IndexInteger> {
 }
 
 impl<T: IndexInteger> IndexBuffer<T> {
-    /// Index Buffer を作成する。
+    /// Creates an Index Buffer from index slice.
     pub fn new(device: &Device, indices: &[T]) -> Result<IndexBuffer<T>> {
         let buffer = create_buffer(
             device,
@@ -142,13 +143,13 @@ impl<T: IndexInteger> IndexBuffer<T> {
         })
     }
 
-    /// Index Buffer の長さを取得する。
+    /// Returns the length of indices.
     pub fn len(&self) -> usize {
         self.length
     }
 }
 
-/// `ID3D11Buffer` を作成する。
+/// Creates an `ID3D11Buffer`.
 fn create_buffer<T>(
     device: &Device,
     data: &[T],
