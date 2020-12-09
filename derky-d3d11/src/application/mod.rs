@@ -59,6 +59,9 @@ pub struct Application {
     /// G-Buffer 用の `PixelShader`
     ps_geometry: PixelShader,
 
+    /// Directional Lighting 用の `Pixel Shader`
+    ps_lighting_directional: PixelShader,
+
     /// 共通の `Sampler`,
     sampler: Sampler,
 
@@ -112,6 +115,10 @@ impl Application {
             VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
         let ps_geometry =
             PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
+        let ps_lighting_directional = PixelShader::load_object(
+            device,
+            "assets/shaders/d3d11-compiled/lighting/directional.pso",
+        )?;
         let input_layout = InputLayout::create(device, &MODEL_VERTEX_LAYOUT, &vs_common.binary())?;
         let sampler = Sampler::new(device)?;
 
@@ -174,6 +181,7 @@ impl Application {
             model,
             vs_common,
             ps_geometry,
+            ps_lighting_directional,
             input_layout,
             sampler,
             screen_buffers,
@@ -227,10 +235,27 @@ impl Application {
 
     /// Lighting Buffer への描画をする。
     pub fn draw_lighting(&mut self, context: &Context) {
+        self.lighting_buffer.clear(&context);
+
         context.set_render_target(from_ref(&self.lighting_buffer), None);
         context.set_blend_state(&self.bs_lighting, [1.0f32; 4], 0xffffffff);
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_sampler(0, Some(&self.sampler));
+        context.set_texture(0, Some(&self.g_buffer_texture[1]));
+        context.set_texture(1, Some(&self.g_buffer_texture[2]));
+        context.set_constant_buffer_vertex(0, &self.cb_view);
+        context.set_constant_buffer_pixel(0, &self.cb_view);
+        context.set_shaders(
+            &self.input_layout,
+            &self.screen_shaders.0,
+            &self.ps_lighting_directional,
+        );
+        context.set_vertices(
+            &self.screen_buffers.0,
+            &self.screen_buffers.1,
+            Topology::Triangles,
+        );
+        context.draw_with_indices(self.screen_buffers.1.len());
     }
 
     pub fn draw_composition(
@@ -245,11 +270,11 @@ impl Application {
         context.set_render_target(from_ref(&target), Some(&depth_stencil));
         context.set_blend_state(&self.bs_geometry, [1.0f32; 4], 0xffffffff);
         context.set_viewport(&BUFFER_VIEWPORT);
+        context.set_sampler(0, Some(&self.sampler));
         for (index, textures) in self.g_buffer_texture.iter().enumerate() {
             context.set_texture(index, Some(textures));
         }
         context.set_texture(5, Some(&self.lighting_buffer_texture));
-        context.set_sampler(0, Some(&self.sampler));
         context.set_shaders(
             &self.input_layout,
             &self.screen_shaders.0,

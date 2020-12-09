@@ -1,4 +1,4 @@
-generated_at = "2020-12-07T23:25:27.530347600+09:00"
+generated_at = "2020-12-09T18:40:09.644997200+09:00"
 
 [[dependencies]]
 file = "screen.hlsl"
@@ -6,4 +6,8 @@ dependencies = ["common.hlsli"]
 
 [[dependencies]]
 file = "geometry.hlsl"
+dependencies = ["common.hlsli"]
+
+[[dependencies]]
+file = "lighting.hlsl"
 dependencies = ["common.hlsli"]
