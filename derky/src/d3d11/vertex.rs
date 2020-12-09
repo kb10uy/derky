@@ -1,4 +1,4 @@
-//! D3D11 の頂点関係
+//! Contains operations and types for vertices.
 
 use ultraviolet::{Vec2, Vec3, Vec4};
 pub use winapi::{
@@ -6,10 +6,10 @@ pub use winapi::{
     um::{d3d11, d3dcommon},
 };
 
-/// D3D11 頂点
+/// Indicates that this type is reinterpretable as Direct3D 11 vertex.
 pub trait D3d11Vertex {}
 
-/// DXGI_FORMAT 値をもつ型が実装する。
+/// Indicates that this type is reinterpretable as `DXGI_FORMAT` types.
 pub trait AsDxgiFormat {
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT;
 }
@@ -30,7 +30,7 @@ impl AsDxgiFormat for Vec4 {
     const DXGI_FORMAT: dxgiformat::DXGI_FORMAT = dxgiformat::DXGI_FORMAT_R32G32B32A32_FLOAT;
 }
 
-/// D3D11 の頂点とレイアウトを生成する。
+/// Generates a vertex type for Direct3D 11 and its Input Layout.
 #[macro_export]
 macro_rules! d3d11_vertex {
     ( $n:ident : $iln:ident { $( $fn:ident : $ft:ty => ( $fs:expr , $fsi:expr ) ),* $(,)? } ) => {
@@ -39,7 +39,6 @@ macro_rules! d3d11_vertex {
     };
 }
 
-/// D3D11 の頂点の構造体を定義する。
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __d3d11_vertex_struct {
@@ -53,7 +52,6 @@ macro_rules! __d3d11_vertex_struct {
     };
 }
 
-/// D3D11 の頂点の Input Layout を定義する。
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __d3d11_vertex_layout {
@@ -99,7 +97,7 @@ d3d11_vertex!(Vertex : VERTEX_INPUT_LAYOUT {
     uv: Vec2 => ("TEXCOORD", 0),
 });
 
-/// 画面全体のポリゴンの `Vertex` 配列
+/// `Vertex` array for screen
 pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
     Vertex {
         position: Vec3::new(-1.0, 1.0, 0.5),
@@ -123,10 +121,10 @@ pub const SCREEN_QUAD_VERTICES: [Vertex; 4] = [
     },
 ];
 
-/// 画面全体のポリゴンのインデックス配列
+/// Index array for screen
 pub const SCREEN_QUAD_INDICES: [u32; 6] = [0, 1, 2, 2, 1, 3];
 
-/// Vertex Shader 入力のトポロジー
+/// Represents a topology of Vertex Shader input.
 #[derive(Debug, Clone, Copy)]
 pub enum Topology {
     Points,
@@ -137,7 +135,6 @@ pub enum Topology {
 }
 
 impl Topology {
-    /// `D3D11_PRIMITIVE_TOPOLOGY_xxx` に変換する。
     pub fn to_d3d11(self) -> u32 {
         match self {
             Topology::Points => d3dcommon::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST,
