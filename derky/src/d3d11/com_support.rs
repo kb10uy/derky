@@ -1,4 +1,4 @@
-//! Windows COM の型サポート
+//! Safe operation of Windows COM.
 
 use std::{ops::Deref, ptr::NonNull};
 
@@ -12,7 +12,7 @@ use winapi::{
     Interface,
 };
 
-/// ComPtr のラッパー
+/// Wraps COM Object.
 #[derive(Debug)]
 pub struct ComPtr<T: Interface>(NonNull<T>);
 
@@ -22,12 +22,13 @@ impl<T: Interface> ComPtr<T> {
         NonNull::new(pointer).map(ComPtr)
     }
 
-    /// ポインタを取得する。この際 AddRef() は呼ばれない。
+    /// Returns the raw pointer.
+    /// AddRef() won't be called internally.
     pub fn as_ptr(&self) -> *mut T {
         self.0.as_ptr()
     }
 
-    /// move することによってポインタを取得する。
+    /// Moves and Returns the raw pointer.
     pub fn into_ptr(self) -> *mut T {
         self.0.as_ptr()
     }
@@ -60,7 +61,7 @@ impl<T: Interface> Drop for ComPtr<T> {
     }
 }
 
-/// HRESULT から Result への変換
+/// The extension trait for `HRESULT` type.
 pub trait HresultErrorExt {
     fn err(self) -> Result<()>;
 }
