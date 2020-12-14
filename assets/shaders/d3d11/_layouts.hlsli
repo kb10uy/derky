@@ -1,22 +1,9 @@
-#ifndef DERKY_COMMON
-#define DERKY_COMMON
+/*
+ * 入力・出力レイアウト
+ */
 
-// ViewMatrices cbuffer
-#define DECLARE_VIEW_MATRICES(slot) \
-    cbuffer ViewMatrices : register(slot) { \
-        float4x4 view; \
-        float4x4 projection; \
-        float4x4 view_inv; \
-        float4x4 projection_inv; \
-        float4 screen_time; \
-    }
-
-/// ModelMatrices cbuffer
-#define DECLARE_MODEL_MATRICES(slot) \
-    cbuffer ModelMatrices : register(slot) { \
-        float4x4 model; \
-    }
-
+#ifndef DERKY_LAYOUTS
+#define DERKY_LAYOUTS
 
 // Vertex Shader の共通の入力
 struct VsInput {

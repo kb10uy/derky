@@ -1,13 +1,13 @@
-generated_at = "2020-12-09T18:40:09.644997200+09:00"
+generated_at = "2020-12-14T16:02:21.857409500+09:00"
 
 [[dependencies]]
 file = "screen.hlsl"
-dependencies = ["common.hlsli"]
+dependencies = ["_layouts.hlsli"]
 
 [[dependencies]]
 file = "geometry.hlsl"
-dependencies = ["common.hlsli"]
+dependencies = ["_layouts.hlsli", "_cbuffers.hlsli"]
 
 [[dependencies]]
 file = "lighting.hlsl"
-dependencies = ["common.hlsli"]
+dependencies = ["_layouts.hlsli", "_cbuffers.hlsli", "_constants.hlsli"]

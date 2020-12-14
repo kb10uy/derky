@@ -37,3 +37,9 @@ input = "lighting.hlsl"
 output = "lighting/directional.pso"
 profile = "ps_5_0"
 entrypoint = "pixel_directional"
+
+[[outputs]]
+input = "lighting.hlsl"
+output = "lighting/image.pso"
+profile = "ps_5_0"
+entrypoint = "pixel_image"

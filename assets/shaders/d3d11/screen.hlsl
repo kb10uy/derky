@@ -1,4 +1,4 @@
-#include "common.hlsli"
+#include "_layouts.hlsli"
 
 Texture2D albedo : register(t0);
 Texture2D world_position : register(t1);

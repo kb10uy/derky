@@ -1,7 +1,8 @@
-#include "common.hlsli"
+#include "_layouts.hlsli"
+#include "_cbuffers.hlsli"
 
-DECLARE_VIEW_MATRICES(b0);
-DECLARE_MODEL_MATRICES(b1);
+CBUFFER_VIEW_MATRICES(b0);
+CBUFFER_MODEL_DATA(b1);
 
 Texture2D albedo : register(t0);
 
