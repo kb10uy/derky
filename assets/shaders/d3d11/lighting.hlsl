@@ -48,7 +48,7 @@ LightingOutput pixel_image(LightingInput input) {
     float3 reflection = reflect(camera_ray, normal);
 
     float xz_angle = atan2(reflection.z, reflection.x);
-    float yz_angle = sign(reflection.y) * acos(dot(reflection, normalize(float3(reflection.x, 0.0, reflection.z))));
+    float yz_angle = -sign(reflection.y) * acos(dot(reflection, normalize(float3(reflection.x, 0.0, reflection.z))));
     float2 image_uv = float2((xz_angle + PI) / (2.0 * PI), yz_angle / PI + 0.5);
 
     LightingOutput output;

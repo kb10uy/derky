@@ -4,7 +4,7 @@ use crate::{
     common::texture::Rgba,
     comptrize,
     d3d11::{
-        buffer::{ConstantBuffer, IndexBuffer, IndexInteger, VertexBuffer},
+        buffer::{ConstantBuffer, IndexBuffer, IndexInteger, RwBuffer, VertexBuffer},
         com_support::{ComPtr, HresultErrorExt},
         shader::{InputLayout, PixelShader, VertexShader},
         texture::{DepthStencil, RenderTarget, Sampler, Texture},
@@ -66,10 +66,36 @@ impl Context {
         }
     }
 
+    /// Sets `RenderTarget`s, `DepthStencil`, and `RwBuffer`s.
+    pub fn set_render_targets_and_rw_buffers<T>(
+        &self,
+        render_targets: &[RenderTarget],
+        depth_stencil: Option<&DepthStencil>,
+        rw_start: usize,
+        rw_buffers: &[RwBuffer<T>],
+    ) {
+        unsafe {
+            let rtv: Vec<_> = render_targets.iter().map(|rt| rt.view.as_ptr()).collect();
+            let dsv = depth_stencil.map(|ds| ds.view.as_ptr()).unwrap_or(null!(_));
+            let uav: Vec<_> = rw_buffers.iter().map(|rwb| rwb.view.as_ptr()).collect();
+            self.immediate_context
+                .OMSetRenderTargetsAndUnorderedAccessViews(
+                    rtv.len() as u32,
+                    rtv.as_ptr(),
+                    dsv,
+                    rw_start as u32,
+                    uav.len() as u32,
+                    uav.as_ptr(),
+                    null!(_),
+                );
+        }
+    }
+
     /// Sets a `BlendState`.
     pub fn set_blend_state(&self, blend_state: &BlendState, factor: [f32; 4], mask: u32) {
         unsafe {
-            self.immediate_context.OMSetBlendState(blend_state.blend_state.as_ptr(), &factor, mask);
+            self.immediate_context
+                .OMSetBlendState(blend_state.blend_state.as_ptr(), &factor, mask);
         }
     }
 

@@ -2,12 +2,12 @@ mod model;
 
 use model::{load_obj, ModelVertex, MODEL_VERTEX_LAYOUT};
 
-use std::{slice::from_ref, time::Duration};
+use std::{collections::HashMap, slice::from_ref, time::Duration};
 
 use anyhow::Result;
 use derky::{
     common::{
-        environment::{Environment, View},
+        environment::{DirectionalLight, Environment, ImageLight, View},
         model::Model,
         texture::Rgba,
     },
@@ -26,6 +26,22 @@ use ultraviolet::{Mat4, Vec2, Vec3, Vec4};
 
 const BUFFER_VIEWPORT: Viewport = create_viewport((1280, 720));
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+enum ShaderKind {
+    Screen,
+    Geometry,
+    DirectionalLighting,
+    ImageLighting,
+    PointLighting,
+    AmbientLighting,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+enum BlendStateKind {
+    AlphaBlend,
+    TotallyAdditional,
+}
+
 #[derive(Debug, Default)]
 struct ViewMatrices {
     view: Mat4,
@@ -43,24 +59,24 @@ pub struct Application {
     /// モデル
     model: Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>,
 
+    /// 部屋のモデル
+    room_model: Model<(VertexBuffer<ModelVertex>, IndexBuffer<u32>), Texture>,
+
     // D3D11 に対応するリソース ---------------------------------
+    /// `VertexShader` のコレクション
+    vertex_shaders: HashMap<ShaderKind, VertexShader>,
+
+    /// `PixelShader` のコレクション
+    pixel_shaders: HashMap<ShaderKind, PixelShader>,
+
+    /// `BlendState` のコレクション
+    blend_states: HashMap<BlendStateKind, BlendState>,
+
     /// スクリーン全体の `VertexBuffer` / `IndexBuffer`
     screen_buffers: (VertexBuffer<Vertex>, IndexBuffer<u32>),
 
-    /// Composition Stage の `VertexBuffer` / 'PixelShader`
-    screen_shaders: (VertexShader, PixelShader),
-
     /// モデル用の `InputLayout`
     input_layout: InputLayout,
-
-    /// モデル用の共通の `VertexShader`
-    vs_common: VertexShader,
-
-    /// G-Buffer 用の `PixelShader`
-    ps_geometry: PixelShader,
-
-    /// Directional Lighting 用の `Pixel Shader`
-    ps_lighting_directional: PixelShader,
 
     /// 共通の `Sampler`,
     sampler: Sampler,
@@ -70,12 +86,6 @@ pub struct Application {
 
     /// モデル行列の `ConstantBuffer`
     cb_model: ConstantBuffer<Mat4>,
-
-    /// G-Buffer の `BlendState`
-    bs_geometry: BlendState,
-
-    /// Lighting Buffer の `BlendState`
-    bs_lighting: BlendState,
 
     /// G-Buffer
     g_buffer: Box<[RenderTarget]>,
@@ -95,7 +105,7 @@ pub struct Application {
 
 impl Application {
     pub fn new(device: &Device) -> Result<Application> {
-        let environment = Environment::new(View::new(
+        let mut environment = Environment::new(View::new(
             Mat4::look_at_lh(
                 Vec3::new(0.0, 1.0, -1.0),
                 Vec3::new(0.0, 1.0, 0.0),
@@ -104,22 +114,89 @@ impl Application {
             perspective_dx(60f32.to_radians(), 16.0 / 9.0, 0.1, 1024.0),
             Vec2::new(1280.0, 720.0),
         ));
-        let model = load_obj(&device, "assets/models/Natsuki.obj")?;
+        environment.image_light = Some(ImageLight {
+            intensity: 1.0,
+            texture: Texture::load_hdr(device, "assets/models/background.exr")?,
+        });
 
-        // Shaders
-        let screen_shaders = (
+        let model = load_obj(device, "assets/models/Natsuki.obj")?;
+        let room_model = load_obj(device, "assets/models/Room.obj")?;
+
+        let mut vertex_shaders = HashMap::new();
+        let mut pixel_shaders = HashMap::new();
+        let mut blend_states = HashMap::new();
+
+        vertex_shaders.insert(
+            ShaderKind::Screen,
             VertexShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.vso")?,
+        );
+        pixel_shaders.insert(
+            ShaderKind::Screen,
             PixelShader::load_object(&device, "assets/shaders/d3d11-compiled/screen.pso")?,
         );
-        let vs_common =
-            VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?;
-        let ps_geometry =
-            PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?;
-        let ps_lighting_directional = PixelShader::load_object(
+        vertex_shaders.insert(
+            ShaderKind::Geometry,
+            VertexShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.vso")?,
+        );
+        pixel_shaders.insert(
+            ShaderKind::Geometry,
+            PixelShader::load_object(device, "assets/shaders/d3d11-compiled/geometry.pso")?,
+        );
+        pixel_shaders.insert(
+            ShaderKind::DirectionalLighting,
+            PixelShader::load_object(
+                device,
+                "assets/shaders/d3d11-compiled/lighting/directional.pso",
+            )?,
+        );
+        pixel_shaders.insert(
+            ShaderKind::ImageLighting,
+            PixelShader::load_object(device, "assets/shaders/d3d11-compiled/lighting/image.pso")?,
+        );
+
+        // Blend State
+        blend_states.insert(
+            BlendStateKind::AlphaBlend,
+            BlendState::new_combined(
+                device,
+                (
+                    BlendPair {
+                        source: BlendWeight::SourceAlpha,
+                        destination: BlendWeight::OneMinusSourceAlpha,
+                        operation: BlendOperation::Add,
+                    },
+                    BlendPair {
+                        source: BlendWeight::One,
+                        destination: BlendWeight::Zero,
+                        operation: BlendOperation::Add,
+                    },
+                ),
+            )?,
+        );
+        blend_states.insert(
+            BlendStateKind::TotallyAdditional,
+            BlendState::new_combined(
+                device,
+                (
+                    BlendPair {
+                        source: BlendWeight::One,
+                        destination: BlendWeight::One,
+                        operation: BlendOperation::Add,
+                    },
+                    BlendPair {
+                        source: BlendWeight::One,
+                        destination: BlendWeight::One,
+                        operation: BlendOperation::Add,
+                    },
+                ),
+            )?,
+        );
+
+        let input_layout = InputLayout::create(
             device,
-            "assets/shaders/d3d11-compiled/lighting/directional.pso",
+            &MODEL_VERTEX_LAYOUT,
+            &vertex_shaders[&ShaderKind::Geometry].binary(),
         )?;
-        let input_layout = InputLayout::create(device, &MODEL_VERTEX_LAYOUT, &vs_common.binary())?;
         let sampler = Sampler::new(device)?;
 
         // Buffers
@@ -129,38 +206,6 @@ impl Application {
         );
         let cb_view = ConstantBuffer::new(device, &Default::default())?;
         let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
-
-        // Blend State
-        let bs_geometry = BlendState::new_combined(
-            device,
-            (
-                BlendPair {
-                    source: BlendWeight::SourceAlpha,
-                    destination: BlendWeight::OneMinusSourceAlpha,
-                    operation: BlendOperation::Add,
-                },
-                BlendPair {
-                    source: BlendWeight::One,
-                    destination: BlendWeight::Zero,
-                    operation: BlendOperation::Add,
-                },
-            ),
-        )?;
-        let bs_lighting = BlendState::new_combined(
-            device,
-            (
-                BlendPair {
-                    source: BlendWeight::One,
-                    destination: BlendWeight::One,
-                    operation: BlendOperation::Add,
-                },
-                BlendPair {
-                    source: BlendWeight::One,
-                    destination: BlendWeight::One,
-                    operation: BlendOperation::Add,
-                },
-            ),
-        )?;
 
         // G-Buffer
         let g_buffer: Box<_> = (0..3)
@@ -179,17 +224,15 @@ impl Application {
         Ok(Application {
             environment,
             model,
-            vs_common,
-            ps_geometry,
-            ps_lighting_directional,
+            room_model,
+            vertex_shaders,
+            pixel_shaders,
+            blend_states,
             input_layout,
             sampler,
             screen_buffers,
-            screen_shaders,
             cb_view,
             cb_model,
-            bs_geometry,
-            bs_lighting,
             g_buffer,
             g_buffer_texture,
             g_buffer_ds,
@@ -203,10 +246,12 @@ impl Application {
         self.environment.tick(delta);
         self.cb_view
             .update(&context, &self.generate_view_matrices());
+        /*
         self.cb_model.update(
             &context,
             &Mat4::from_rotation_y(self.environment.elapsed.as_secs_f32()),
         );
+        */
     }
 
     /// G-Buffer への描画をする。
@@ -217,9 +262,17 @@ impl Application {
         }
 
         context.set_render_target(&self.g_buffer, Some(&self.g_buffer_ds));
-        context.set_blend_state(&self.bs_geometry, [1.0f32; 4], 0xffffffff);
+        context.set_blend_state(
+            &self.blend_states[&BlendStateKind::AlphaBlend],
+            [1.0f32; 4],
+            0xffffffff,
+        );
         context.set_viewport(&BUFFER_VIEWPORT);
-        context.set_shaders(&self.input_layout, &self.vs_common, &self.ps_geometry);
+        context.set_shaders(
+            &self.input_layout,
+            &self.vertex_shaders[&ShaderKind::Geometry],
+            &self.pixel_shaders[&ShaderKind::Geometry],
+        );
         context.set_constant_buffer_vertex(0, &self.cb_view);
         context.set_constant_buffer_vertex(1, &self.cb_model);
         context.set_constant_buffer_pixel(0, &self.cb_view);
@@ -231,6 +284,12 @@ impl Application {
             context.set_vertices(&vb, &ib, Topology::Triangles);
             context.draw_with_indices(ib.len());
         }
+
+        for ((vb, ib), texture) in self.room_model.visit() {
+            context.set_texture(0, texture);
+            context.set_vertices(&vb, &ib, Topology::Triangles);
+            context.draw_with_indices(ib.len());
+        }
     }
 
     /// Lighting Buffer への描画をする。
@@ -238,17 +297,23 @@ impl Application {
         self.lighting_buffer.clear(&context);
 
         context.set_render_target(from_ref(&self.lighting_buffer), None);
-        context.set_blend_state(&self.bs_lighting, [1.0f32; 4], 0xffffffff);
+        context.set_blend_state(
+            &self.blend_states[&BlendStateKind::TotallyAdditional],
+            [1.0f32; 4],
+            0xffffffff,
+        );
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_sampler(0, Some(&self.sampler));
         context.set_texture(0, Some(&self.g_buffer_texture[1]));
         context.set_texture(1, Some(&self.g_buffer_texture[2]));
         context.set_constant_buffer_vertex(0, &self.cb_view);
         context.set_constant_buffer_pixel(0, &self.cb_view);
+
+        // Directional Lighting
         context.set_shaders(
             &self.input_layout,
-            &self.screen_shaders.0,
-            &self.ps_lighting_directional,
+            &self.vertex_shaders[&ShaderKind::Screen],
+            &self.pixel_shaders[&ShaderKind::DirectionalLighting],
         );
         context.set_vertices(
             &self.screen_buffers.0,
@@ -256,8 +321,25 @@ impl Application {
             Topology::Triangles,
         );
         context.draw_with_indices(self.screen_buffers.1.len());
+
+        // Image Lighting
+        if let Some(light) = &self.environment.image_light {
+            context.set_shaders(
+                &self.input_layout,
+                &self.vertex_shaders[&ShaderKind::Screen],
+                &self.pixel_shaders[&ShaderKind::ImageLighting],
+            );
+            context.set_texture(2, Some(&light.texture));
+            context.set_vertices(
+                &self.screen_buffers.0,
+                &self.screen_buffers.1,
+                Topology::Triangles,
+            );
+            context.draw_with_indices(self.screen_buffers.1.len());
+        }
     }
 
+    /// Buffer 同士の合成をする。
     pub fn draw_composition(
         &mut self,
         context: &Context,
@@ -268,7 +350,11 @@ impl Application {
         depth_stencil.clear(&context);
 
         context.set_render_target(from_ref(&target), Some(&depth_stencil));
-        context.set_blend_state(&self.bs_geometry, [1.0f32; 4], 0xffffffff);
+        context.set_blend_state(
+            &self.blend_states[&BlendStateKind::AlphaBlend],
+            [1.0f32; 4],
+            0xffffffff,
+        );
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_sampler(0, Some(&self.sampler));
         for (index, textures) in self.g_buffer_texture.iter().enumerate() {
@@ -277,8 +363,8 @@ impl Application {
         context.set_texture(5, Some(&self.lighting_buffer_texture));
         context.set_shaders(
             &self.input_layout,
-            &self.screen_shaders.0,
-            &self.screen_shaders.1,
+            &self.vertex_shaders[&ShaderKind::Screen],
+            &self.pixel_shaders[&ShaderKind::Screen],
         );
         context.set_vertices(
             &self.screen_buffers.0,
