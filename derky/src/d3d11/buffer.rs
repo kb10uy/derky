@@ -22,8 +22,6 @@ use anyhow::{Context as AnyhowContext, Result};
 use log::debug;
 use winapi::{shared::dxgiformat, um::d3d11};
 
-
-
 /// Represents a Vertex Buffer.
 pub struct VertexBuffer<V: D3d11Vertex> {
     pub(crate) buffer: ComPtr<d3d11::ID3D11Buffer>,
@@ -38,6 +36,7 @@ impl<V: D3d11Vertex> VertexBuffer<V> {
             vertices,
             d3d11::D3D11_USAGE_DEFAULT,
             d3d11::D3D11_BIND_VERTEX_BUFFER,
+            0,
             0,
             "Vertex",
         )?;
@@ -65,6 +64,7 @@ impl<T> ConstantBuffer<T> {
             d3d11::D3D11_USAGE_DEFAULT,
             d3d11::D3D11_BIND_CONSTANT_BUFFER,
             0,
+            0,
             "Constant",
         )?;
 
@@ -82,6 +82,7 @@ impl<T> ConstantBuffer<T> {
             from_ref(initial),
             d3d11::D3D11_USAGE_IMMUTABLE,
             d3d11::D3D11_BIND_CONSTANT_BUFFER,
+            0,
             0,
             "Constant",
         )?;
@@ -141,6 +142,7 @@ impl<T: IndexInteger> IndexBuffer<T> {
             d3d11::D3D11_USAGE_DEFAULT,
             d3d11::D3D11_BIND_INDEX_BUFFER,
             0,
+            0,
             "Index",
         )?;
 
@@ -174,6 +176,7 @@ impl<T> RwBuffer<T> {
             d3d11::D3D11_USAGE_DEFAULT,
             d3d11::D3D11_BIND_SHADER_RESOURCE | d3d11::D3D11_BIND_UNORDERED_ACCESS,
             0,
+            d3d11::D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS,
             "Unordered",
         )?;
         let staging = create_buffer(
@@ -182,16 +185,18 @@ impl<T> RwBuffer<T> {
             d3d11::D3D11_USAGE_STAGING,
             0,
             d3d11::D3D11_CPU_ACCESS_WRITE | d3d11::D3D11_CPU_ACCESS_READ,
+            0,
             "Unordered (Staging)",
         )?;
         let view = unsafe {
             let mut uav = null!(d3d11::ID3D11UnorderedAccessView);
             let mut desc = d3d11::D3D11_UNORDERED_ACCESS_VIEW_DESC {
-                Format: dxgiformat::DXGI_FORMAT_R32_UINT,
+                Format: dxgiformat::DXGI_FORMAT_R32_TYPELESS,
                 ViewDimension: d3d11::D3D11_UAV_DIMENSION_BUFFER,
                 u: zeroed(),
             };
             desc.u.Buffer_mut().Flags = d3d11::D3D11_BUFFER_UAV_FLAG_RAW;
+            desc.u.Buffer_mut().NumElements = 1;
             device
                 .device
                 .CreateUnorderedAccessView(
@@ -202,7 +207,7 @@ impl<T> RwBuffer<T> {
                 .err()
                 .context("Failed to create Unordered Access View")?;
 
-                comptrize!(uav);
+            comptrize!(uav);
             uav
         };
 
@@ -265,6 +270,7 @@ fn create_buffer<T>(
     usage: d3d11::D3D11_USAGE,
     bind: d3d11::D3D11_BIND_FLAG,
     cpu_access: d3d11::D3D11_CPU_ACCESS_FLAG,
+    misc: d3d11::D3D11_RESOURCE_MISC_FLAG,
     type_string: &'static str,
 ) -> Result<ComPtr<d3d11::ID3D11Buffer>> {
     let byte_width = (data.len() * size_of::<T>()) as u32;
@@ -278,7 +284,7 @@ fn create_buffer<T>(
         Usage: usage,
         BindFlags: bind,
         CPUAccessFlags: cpu_access,
-        MiscFlags: 0,
+        MiscFlags: misc,
         StructureByteStride: 0,
     };
 

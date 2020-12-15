@@ -12,7 +12,7 @@ use derky::{
         texture::Rgba,
     },
     d3d11::{
-        buffer::{ConstantBuffer, IndexBuffer, VertexBuffer},
+        buffer::{ConstantBuffer, IndexBuffer, RwBuffer, VertexBuffer},
         context::{
             create_viewport, BlendOperation, BlendPair, BlendState, BlendWeight, Context, Device,
             Viewport,
@@ -22,6 +22,7 @@ use derky::{
         vertex::{Topology, Vertex, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES},
     },
 };
+use log::info;
 use ultraviolet::{Mat4, Vec2, Vec3, Vec4};
 
 const BUFFER_VIEWPORT: Viewport = create_viewport((1280, 720));
@@ -86,6 +87,9 @@ pub struct Application {
 
     /// モデル行列の `ConstantBuffer`
     cb_model: ConstantBuffer<Mat4>,
+
+    /// 明度を格納する `RwBuffer`
+    uav_luminance: RwBuffer<[u32; 8]>,
 
     /// G-Buffer
     g_buffer: Box<[RenderTarget]>,
@@ -204,6 +208,7 @@ impl Application {
             VertexBuffer::new(device, &SCREEN_QUAD_VERTICES)?,
             IndexBuffer::new(device, &SCREEN_QUAD_INDICES)?,
         );
+        let uav_luminance = RwBuffer::new(device, &[0u32; 8])?;
         let cb_view = ConstantBuffer::new(device, &Default::default())?;
         let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
 
@@ -233,6 +238,7 @@ impl Application {
             screen_buffers,
             cb_view,
             cb_model,
+            uav_luminance,
             g_buffer,
             g_buffer_texture,
             g_buffer_ds,
@@ -346,10 +352,16 @@ impl Application {
         target: &RenderTarget,
         depth_stencil: &DepthStencil,
     ) {
-        target.clear(&context);
-        depth_stencil.clear(&context);
+        target.clear(context);
+        depth_stencil.clear(context);
+        self.uav_luminance.set(context, &[0u32; 8]);
 
-        context.set_render_target(from_ref(&target), Some(&depth_stencil));
+        context.set_render_targets_and_rw_buffers(
+            from_ref(&target),
+            Some(&depth_stencil),
+            4,
+            from_ref(&self.uav_luminance),
+        );
         context.set_blend_state(
             &self.blend_states[&BlendStateKind::AlphaBlend],
             [1.0f32; 4],
@@ -372,6 +384,9 @@ impl Application {
             Topology::Triangles,
         );
         context.draw_with_indices(self.screen_buffers.1.len());
+
+        let luminance = self.uav_luminance.get(&context);
+        info!("Luminance: {:?}", luminance);
     }
 
     fn generate_view_matrices(&self) -> ViewMatrices {
