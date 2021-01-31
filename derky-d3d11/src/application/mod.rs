@@ -139,7 +139,7 @@ impl Application {
                 intensity: Vec3::new(20.0, 20.0, 20.0),
             },
             PointLight {
-                position: Vec3::new(0.0, 0.0, -1.9),
+                position: Vec3::new(0.0, 0.0, -1.5),
                 intensity: Vec3::new(10.0, 10.0, 10.0),
             },
         ];
@@ -277,6 +277,24 @@ impl Application {
     /// 更新処理をする。
     pub fn tick(&mut self, context: &Context, delta: Duration) {
         self.environment.tick(delta);
+        let time = self.environment.elapsed.as_secs_f32();
+
+        let light1 = &mut self.environment.point_lights[0];
+        light1.position.x = (time * 2.0).cos() * 0.9;
+        light1.position.y = (time * 1.7320508).sin() * 0.3 + 0.7;
+        light1.position.z = (time * 2.0).sin() * 0.9;
+
+        let light2 = &mut self.environment.point_lights[1];
+        light2.position.x = (time * -3.0).cos() * 0.2;
+        light2.position.z = (time * -3.0).sin() * 0.2;
+
+        let light3 = &mut self.environment.point_lights[2];
+        light3.intensity = if (time * 3.14).sin() > 0.0 {
+            Vec3::new(10.0, 10.0, 10.0)
+        } else {
+            Vec3::new(0.0, 0.0, 0.0)
+        };
+
         self.cb_view
             .update(&context, &self.generate_view_matrices());
         /*
@@ -453,7 +471,7 @@ impl Application {
 
         let luminance = self.uav_luminance.get(&context);
         self.environment.update_luminance(luminance[0] as f32);
-        info!("Luminance: {:?}", luminance);
+        info!("Luminance: {:?}", luminance[0] as f32 / (1280.0 * 720.0 * 8.0));
     }
 
     fn generate_view_matrices(&self) -> ViewMatrices {

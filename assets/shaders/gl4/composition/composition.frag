@@ -83,11 +83,6 @@ void main() {
     vec3 exposure_color = raw_color * (0.18 / prev_luminance_average);
     vec3 final_color = exposure_color;
 
-    // オレオレ謎関数 No.1
-    // vec3 final_color = exposure_color;
-    // final_color = atan(5.0 * (final_color - 0.4)) / 2.6 + 0.42;
-    // final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
-
     // exp
     // float k = log(1.0 / 255.0) / 7.0;
     // final_color = 1.0 - exp(k * final_color);
@@ -98,8 +93,9 @@ void main() {
 
     // ACES Filmic
     final_color = vec3(aces_filmic(final_color.r), aces_filmic(final_color.g), aces_filmic(final_color.b));
-    final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
 
     // OpenGL は線形出力に対して常に x^(1.0/2.2) のガンマ補正を行う？
-    color = vec4(pow(0.5, 2.2)); vec4(final_color, 1.0);
+    // final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
+
+    color = vec4(final_color, 1.0);
 }

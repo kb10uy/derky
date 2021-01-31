@@ -50,7 +50,7 @@ LightingOutput pixel_point(LightingInput input) {
     float attenuation = 1.0 / (pow(light_distance + 1.0, 2.0));
 
     float diffuse_luminance = max(0, dot(normal, -light_direction));
-    float3 out_color = point_intensity.rgb * diffuse_luminance;
+    float3 out_color = point_intensity.rgb * diffuse_luminance * attenuation;
 
     LightingOutput output;
     output.intensity = float4(out_color, 1.0);
