@@ -4,11 +4,11 @@
 
 CBUFFER_VIEW_MATRICES(b0);
 
-Texture2D albedo : register(t0);
-Texture2D world_position : register(t1);
-Texture2D world_normal : register(t2);
+// Texture2D albedo : register(t0);
+// Texture2D world_position : register(t1);
+// Texture2D world_normal : register(t2);
 Texture2D depth : register(t4);
-Texture2D lighting : register(t5);
+Texture2D shaded : register(t5);
 
 RWByteAddressBuffer luminances : register(u4);
 
@@ -29,15 +29,13 @@ CompositionInput vertex_main(VsInput input) {
 }
 
 CompositionOutput pixel_main(CompositionInput input) {
-    float3 albedo_color = albedo.Sample(globalSampler, input.uv).rgb;
-    float3 light_color = lighting.Sample(globalSampler, input.uv).rgb;
-    float3 raw_color = albedo_color * light_color;
+    float3 shaded_color = shaded.Sample(globalSampler, input.uv).rgb;
 
-    uint this_luminance = uint(luminance(raw_color) * 8.0);
+    uint this_luminance = uint(luminance(shaded_color) * 8.0);
     luminances.InterlockedAdd(0, this_luminance);
 
     float prev_luminance_average = screen_time.w / (8.0 * 1280.0 * 720.0);
-    float3 exposure_color = raw_color * (0.18 / prev_luminance_average);
+    float3 exposure_color = shaded_color * (0.18 / prev_luminance_average);
     float3 final_color = exposure_color;
 
     final_color = float3(aces_filmic(final_color.r), aces_filmic(final_color.g), aces_filmic(final_color.b));

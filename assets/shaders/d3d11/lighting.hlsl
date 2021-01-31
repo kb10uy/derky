@@ -7,9 +7,10 @@ CBUFFER_DIRECTIONAL_LIGHT(b1);
 CBUFFER_POINT_LIGHT(b1);
 CBUFFER_IMAGE_LIGHT(b1);
 
-Texture2D world_position : register(t0);
-Texture2D world_normal : register(t1);
-Texture2D light_image: register(t2);
+Texture2D albedo : register(t0);
+Texture2D world_position : register(t1);
+Texture2D world_normal : register(t2);
+Texture2D light_image: register(t3);
 
 LightingInput vertex_screen(VsInput input) {
     LightingInput output;
@@ -31,10 +32,12 @@ LightingOutput pixel_directional(LightingInput input) {
     float3 reflection = normalize(direction + 2.0 * normal);
     float3 camera_ray = normalize(position - camera_position);
     float specular_intensity = max(0, pow(max(0, dot(-reflection, camera_ray)), 20.0));
+
+    float3 diffuse_color = albedo.Sample(globalSampler, input.uv).rgb * intensity * diffuse_luminance;
     float3 specular_color = float3(specular_intensity, specular_intensity, specular_intensity);
 
     LightingOutput output;
-    output.intensity = float4((intensity * diffuse_luminance) + specular_color, 1.0);
+    output.intensity = float4(diffuse_color + specular_color, 1.0);
 
     return output;
 }
@@ -50,7 +53,7 @@ LightingOutput pixel_point(LightingInput input) {
 
     float3 light_direction = normalize(light_ray);
     float diffuse_luminance = max(0, dot(normal, -light_direction));
-    float3 diffuse_color = point_intensity.rgb * diffuse_luminance * attenuation;
+    float3 diffuse_color = albedo.Sample(globalSampler, input.uv).rgb * point_intensity.rgb * diffuse_luminance * attenuation;
 
     float3 camera_position = transpose(view_inv)[3].xyz;
     float3 reflection = normalize(light_direction + 2.0 * normal);
@@ -78,7 +81,7 @@ LightingOutput pixel_image(LightingInput input) {
     float2 image_uv = float2((xz_angle + PI) / (2.0 * PI), yz_angle / PI + 0.5);
 
     LightingOutput output;
-    output.intensity = float4(light_image.Sample(globalSampler, image_uv).rgb * image_intensity.r, 1.0);
+    output.intensity = float4(albedo.Sample(globalSampler, input.uv).rgb * light_image.Sample(globalSampler, image_uv).rgb * image_intensity.r, 1.0);
 
     return output;
 }

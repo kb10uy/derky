@@ -242,7 +242,7 @@ impl Application {
         let cb_light = ConstantBuffer::new(device, &[Vec4::zero(); 4])?;
 
         // G-Buffer
-        let g_buffer: Box<_> = (0..3)
+        let g_buffer: Box<_> = (0..4)
             .map(|_| RenderTarget::create::<f32, Rgba>(device, (1280, 720)))
             .collect::<Result<_>>()?;
         let g_buffer_texture: Box<_> = g_buffer
@@ -360,8 +360,9 @@ impl Application {
         );
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_sampler(0, Some(&self.sampler));
-        context.set_texture(0, Some(&self.g_buffer_texture[1]));
-        context.set_texture(1, Some(&self.g_buffer_texture[2]));
+        for (i, buffer) in self.g_buffer_texture.iter().enumerate() {
+            context.set_texture(i, Some(&buffer));
+        }
         context.set_constant_buffer_vertex(0, &self.cb_view);
         context.set_constant_buffer_pixel(0, &self.cb_view);
         context.set_vertices(
@@ -427,7 +428,7 @@ impl Application {
                 ],
             );
             context.set_constant_buffer_pixel(1, &self.cb_light);
-            context.set_texture(2, Some(&light.texture));
+            context.set_texture(3, Some(&light.texture));
             context.draw_with_indices(self.screen_buffers.1.len());
         }
     }
@@ -456,9 +457,11 @@ impl Application {
         );
         context.set_viewport(&BUFFER_VIEWPORT);
         context.set_sampler(0, Some(&self.sampler));
+        /*
         for (index, textures) in self.g_buffer_texture.iter().enumerate() {
             context.set_texture(index, Some(textures));
         }
+        */
         context.set_texture(4, Some(&self.g_buffer_ds_texture));
         context.set_texture(5, Some(&self.lighting_buffer_texture));
         context.set_shaders(
@@ -478,7 +481,10 @@ impl Application {
 
         let luminance = self.uav_luminance.get(&context);
         self.environment.update_luminance(luminance[0] as f32);
-        info!("Luminance: {:?}", luminance[0] as f32 / (1280.0 * 720.0 * 8.0));
+        info!(
+            "Luminance: {:?}",
+            luminance[0] as f32 / (1280.0 * 720.0 * 8.0)
+        );
     }
 
     fn generate_view_matrices(&self) -> ViewMatrices {
