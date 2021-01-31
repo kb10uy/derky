@@ -100,5 +100,6 @@ void main() {
     final_color = vec3(aces_filmic(final_color.r), aces_filmic(final_color.g), aces_filmic(final_color.b));
     final_color = vec3(pow(final_color.r, 1.0 / 2.2), pow(final_color.g, 1.0 / 2.2), pow(final_color.b, 1.0 / 2.2));
 
-    color = vec4(final_color, 1.0);
+    // OpenGL は線形出力に対して常に x^(1.0/2.2) のガンマ補正を行う？
+    color = vec4(pow(0.5, 2.2)); vec4(final_color, 1.0);
 }
