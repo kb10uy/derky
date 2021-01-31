@@ -385,27 +385,26 @@ impl RenderTarget {
 
 /// An abstraction for `ID3D11DepthStencilView`。
 pub struct DepthStencil {
-    pub(crate) _texture: ComPtr<d3d11::ID3D11Texture2D>,
+    pub(crate) texture: ComPtr<d3d11::ID3D11Texture2D>,
     pub(crate) view: ComPtr<d3d11::ID3D11DepthStencilView>,
+    dimensions: (usize, usize),
 }
 
 impl DepthStencil {
-    pub fn create(device: &Device, dimension: (usize, usize)) -> Result<DepthStencil> {
-        let format = dxgiformat::DXGI_FORMAT_D24_UNORM_S8_UINT;
-
+    pub fn create(device: &Device, dimensions: (usize, usize)) -> Result<DepthStencil> {
         let texture = unsafe {
             let desc = d3d11::D3D11_TEXTURE2D_DESC {
-                Width: dimension.0 as u32,
-                Height: dimension.1 as u32,
+                Width: dimensions.0 as u32,
+                Height: dimensions.1 as u32,
                 MipLevels: 1,
                 ArraySize: 1,
-                Format: format,
+                Format: dxgiformat::DXGI_FORMAT_R32_TYPELESS,
                 SampleDesc: dxgitype::DXGI_SAMPLE_DESC {
                     Count: 1,
                     Quality: 0,
                 },
                 Usage: d3d11::D3D11_USAGE_DEFAULT,
-                BindFlags: d3d11::D3D11_BIND_DEPTH_STENCIL,
+                BindFlags: d3d11::D3D11_BIND_SHADER_RESOURCE | d3d11::D3D11_BIND_DEPTH_STENCIL,
                 CPUAccessFlags: 0,
                 MiscFlags: 0,
             };
@@ -427,7 +426,7 @@ impl DepthStencil {
 
         let view = unsafe {
             let mut desc_ds = d3d11::D3D11_DEPTH_STENCIL_VIEW_DESC {
-                Format: format,
+                Format: dxgiformat::DXGI_FORMAT_D32_FLOAT,
                 ViewDimension: d3d11::D3D11_DSV_DIMENSION_TEXTURE2D,
                 Flags: 0,
                 u: zeroed(),
@@ -448,10 +447,7 @@ impl DepthStencil {
             depth_stencil_view
         };
 
-        Ok(DepthStencil {
-            _texture: texture,
-            view,
-        })
+        Ok(DepthStencil { texture, view, dimensions })
     }
 
     pub fn clear(&self, context: &Context) {
@@ -463,6 +459,26 @@ impl DepthStencil {
                 0,
             );
         }
+    }
+
+    /// Creates a `Texture` referencing this Depth Stencil.
+    pub fn create_texture(&self, device: &Device) -> Result<Texture> {
+        let texture = self.texture.clone();
+        let view = unsafe {
+            Texture::create_view(
+                device,
+                texture.as_ptr(),
+                dxgiformat::DXGI_FORMAT_R32_FLOAT,
+            )?
+        };
+
+        Ok(Texture {
+            _texture: texture,
+            view,
+            channels: 1,
+            format: dxgiformat::DXGI_FORMAT_R32_FLOAT,
+            dimensions: self.dimensions,
+        })
     }
 }
 

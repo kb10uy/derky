@@ -45,15 +45,21 @@ LightingOutput pixel_point(LightingInput input) {
     float3 normal = world_normal.Sample(globalSampler, input.uv).xyz;
 
     float3 light_ray = position - point_position.xyz;
-    float3 light_direction = normalize(light_ray);
     float light_distance = length(light_ray);
     float attenuation = 1.0 / (pow(light_distance + 1.0, 2.0));
 
+    float3 light_direction = normalize(light_ray);
     float diffuse_luminance = max(0, dot(normal, -light_direction));
-    float3 out_color = point_intensity.rgb * diffuse_luminance * attenuation;
+    float3 diffuse_color = point_intensity.rgb * diffuse_luminance * attenuation;
+
+    float3 camera_position = transpose(view_inv)[3].xyz;
+    float3 reflection = normalize(light_direction + 2.0 * normal);
+    float3 camera_ray = normalize(position - camera_position);
+    float specular_intensity = max(0, pow(max(0, dot(-reflection, camera_ray)), 20.0));
+    float3 specular_color = float3(specular_intensity, specular_intensity, specular_intensity);
 
     LightingOutput output;
-    output.intensity = float4(out_color, 1.0);
+    output.intensity = float4(diffuse_color + specular_color, 1.0);
 
     return output;
 }

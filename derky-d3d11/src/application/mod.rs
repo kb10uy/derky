@@ -103,6 +103,9 @@ pub struct Application {
     /// G-Buffer の `DepthStencil`
     g_buffer_ds: DepthStencil,
 
+    /// G-Buffer の `DepthStencil` の `Texture`
+    g_buffer_ds_texture: Texture,
+
     /// Lighting Buffer
     lighting_buffer: RenderTarget,
 
@@ -247,6 +250,7 @@ impl Application {
             .map(|rt| rt.create_texture(&device))
             .collect::<Result<_>>()?;
         let g_buffer_ds = DepthStencil::create(device, (1280, 720))?;
+        let g_buffer_ds_texture = g_buffer_ds.create_texture(device)?;
 
         // Lighting Buffer
         let lighting_buffer = RenderTarget::create::<f32, Rgba>(device, (1280, 720))?;
@@ -269,6 +273,7 @@ impl Application {
             g_buffer,
             g_buffer_texture,
             g_buffer_ds,
+            g_buffer_ds_texture,
             lighting_buffer,
             lighting_buffer_texture,
         })
@@ -454,6 +459,7 @@ impl Application {
         for (index, textures) in self.g_buffer_texture.iter().enumerate() {
             context.set_texture(index, Some(textures));
         }
+        context.set_texture(4, Some(&self.g_buffer_ds_texture));
         context.set_texture(5, Some(&self.lighting_buffer_texture));
         context.set_shaders(
             &self.input_layout,
@@ -468,6 +474,7 @@ impl Application {
             Topology::Triangles,
         );
         context.draw_with_indices(self.screen_buffers.1.len());
+        context.set_texture(4, None);
 
         let luminance = self.uav_luminance.get(&context);
         self.environment.update_luminance(luminance[0] as f32);

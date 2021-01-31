@@ -16,17 +16,7 @@ GBufferInput vertex_main(VsInput input) {
 }
 
 GBufferOutput pixel_main(GBufferInput input) {
-    // 復元されたワールド位置
-    float4 position = float4(
-        ((input.position.x / screen_time.x) * 2.0 - 1.0) * input.position.w,
-        ((input.position.y / screen_time.y) * 2.0 - 1.0) * -input.position.w,
-        input.position.z * input.position.w,
-        input.position.w
-    );
-    position = mul(view_inv, mul(projection_inv, position));
-
     GBufferOutput output;
-    // output.albedo = float4(abs(position - input.world_position).xyz, 1.0);
     output.albedo = float4(albedo.Sample(globalSampler, input.uv).rgb, 1.0);
     output.world_position = input.world_position;
     output.world_normal = float4(input.world_normal.rgb, 1.0);

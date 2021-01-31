@@ -7,7 +7,9 @@ CBUFFER_VIEW_MATRICES(b0);
 Texture2D albedo : register(t0);
 Texture2D world_position : register(t1);
 Texture2D world_normal : register(t2);
+Texture2D depth : register(t4);
 Texture2D lighting : register(t5);
+
 RWByteAddressBuffer luminances : register(u4);
 
 float luminance(float3 color) {
