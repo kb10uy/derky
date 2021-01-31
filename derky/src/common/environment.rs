@@ -76,6 +76,7 @@ pub struct Environment<T> {
     pub point_lights: Vec<PointLight>,
     pub view: View,
     pub elapsed: Duration,
+    pub luminance: f32,
 }
 
 impl<T> Environment<T> {
@@ -89,10 +90,15 @@ impl<T> Environment<T> {
             point_lights: vec![],
             view,
             elapsed: Duration::default(),
+            luminance: 0.0,
         }
     }
 
     pub fn tick(&mut self, delta: Duration) {
         self.elapsed += delta;
+    }
+
+    pub fn update_luminance(&mut self, luminance: f32) {
+        self.luminance = luminance;
     }
 }

@@ -378,6 +378,8 @@ impl Application {
             &self.vertex_shaders[&ShaderKind::Screen],
             &self.pixel_shaders[&ShaderKind::Screen],
         );
+        context.set_constant_buffer_pixel(0, &self.cb_view);
+
         context.set_vertices(
             &self.screen_buffers.0,
             &self.screen_buffers.1,
@@ -386,6 +388,7 @@ impl Application {
         context.draw_with_indices(self.screen_buffers.1.len());
 
         let luminance = self.uav_luminance.get(&context);
+        self.environment.update_luminance(luminance[0] as f32);
         info!("Luminance: {:?}", luminance);
     }
 
@@ -399,7 +402,7 @@ impl Application {
                 self.environment.view.screen_dimensions.x,
                 self.environment.view.screen_dimensions.y,
                 self.environment.elapsed.as_secs_f32(),
-                0.0,
+                self.environment.luminance,
             ),
         }
     }
