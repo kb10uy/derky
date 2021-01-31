@@ -4,6 +4,7 @@
 
 CBUFFER_VIEW_MATRICES(b0);
 CBUFFER_DIRECTIONAL_LIGHT(b1);
+CBUFFER_POINT_LIGHT(b1);
 CBUFFER_IMAGE_LIGHT(b1);
 
 Texture2D world_position : register(t0);
@@ -19,8 +20,8 @@ LightingInput vertex_screen(VsInput input) {
 
 // Directional Light
 LightingOutput pixel_directional(LightingInput input) {
-    float3 intensity = float3(2.0, 2.0, 2.0);
-    float3 direction = normalize(float3(0, 0, 1));
+    float3 intensity = directional_intensity.rgb;
+    float3 direction = normalize(directional_direction.xyz);
 
     float3 position = world_position.Sample(globalSampler, input.uv).xyz;
     float3 normal = world_normal.Sample(globalSampler, input.uv).xyz;
@@ -34,6 +35,25 @@ LightingOutput pixel_directional(LightingInput input) {
 
     LightingOutput output;
     output.intensity = float4((intensity * diffuse_luminance) + specular_color, 1.0);
+
+    return output;
+}
+
+// Point Light
+LightingOutput pixel_point(LightingInput input) {
+    float3 position = world_position.Sample(globalSampler, input.uv).xyz;
+    float3 normal = world_normal.Sample(globalSampler, input.uv).xyz;
+
+    float3 light_ray = position - point_position.xyz;
+    float3 light_direction = normalize(light_ray);
+    float light_distance = length(light_ray);
+    float attenuation = 1.0 / (pow(light_distance + 1.0, 2.0));
+
+    float diffuse_luminance = max(0, dot(normal, -light_direction));
+    float3 out_color = point_intensity.rgb * diffuse_luminance;
+
+    LightingOutput output;
+    output.intensity = float4(out_color, 1.0);
 
     return output;
 }
@@ -52,7 +72,7 @@ LightingOutput pixel_image(LightingInput input) {
     float2 image_uv = float2((xz_angle + PI) / (2.0 * PI), yz_angle / PI + 0.5);
 
     LightingOutput output;
-    output.intensity = float4(light_image.Sample(globalSampler, image_uv).rgb, 1.0);
+    output.intensity = float4(light_image.Sample(globalSampler, image_uv).rgb * image_intensity.r, 1.0);
 
     return output;
 }

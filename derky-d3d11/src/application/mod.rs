@@ -7,7 +7,7 @@ use std::{collections::HashMap, slice::from_ref, time::Duration};
 use anyhow::Result;
 use derky::{
     common::{
-        environment::{DirectionalLight, Environment, ImageLight, View},
+        environment::{Environment, ImageLight, PointLight, View},
         model::Model,
         texture::Rgba,
     },
@@ -85,6 +85,9 @@ pub struct Application {
     /// `ViewMatrices` の `ConstantBuffer`
     cb_view: ConstantBuffer<ViewMatrices>,
 
+    /// ライトパラメータ共通の `ConstantBuffer`
+    cb_light: ConstantBuffer<[Vec4; 4]>,
+
     /// モデル行列の `ConstantBuffer`
     cb_model: ConstantBuffer<Mat4>,
 
@@ -119,9 +122,27 @@ impl Application {
             Vec2::new(1280.0, 720.0),
         ));
         environment.image_light = Some(ImageLight {
-            intensity: 1.0,
+            intensity: 0.5,
             texture: Texture::load_hdr(device, "assets/models/background.exr")?,
         });
+        environment.point_lights = vec![
+            PointLight {
+                position: Vec3::new(-0.5, 0.5, 0.0),
+                intensity: Vec3::new(10.0, 0.0, 0.0),
+            },
+            PointLight {
+                position: Vec3::new(-0.5, 0.7, 0.0),
+                intensity: Vec3::new(0.0, 10.0, 0.0),
+            },
+            PointLight {
+                position: Vec3::new(0.0, 1.9, 0.0),
+                intensity: Vec3::new(20.0, 20.0, 20.0),
+            },
+            PointLight {
+                position: Vec3::new(0.0, 0.0, -1.9),
+                intensity: Vec3::new(10.0, 10.0, 10.0),
+            },
+        ];
 
         let model = load_obj(device, "assets/models/Natsuki.obj")?;
         let room_model = load_obj(device, "assets/models/Room.obj")?;
@@ -152,6 +173,10 @@ impl Application {
                 device,
                 "assets/shaders/d3d11-compiled/lighting/directional.pso",
             )?,
+        );
+        pixel_shaders.insert(
+            ShaderKind::PointLighting,
+            PixelShader::load_object(device, "assets/shaders/d3d11-compiled/lighting/point.pso")?,
         );
         pixel_shaders.insert(
             ShaderKind::ImageLighting,
@@ -211,6 +236,7 @@ impl Application {
         let uav_luminance = RwBuffer::new(device, &[0u32; 8])?;
         let cb_view = ConstantBuffer::new(device, &Default::default())?;
         let cb_model = ConstantBuffer::new(device, &Mat4::identity())?;
+        let cb_light = ConstantBuffer::new(device, &[Vec4::zero(); 4])?;
 
         // G-Buffer
         let g_buffer: Box<_> = (0..3)
@@ -238,6 +264,7 @@ impl Application {
             screen_buffers,
             cb_view,
             cb_model,
+            cb_light,
             uav_luminance,
             g_buffer,
             g_buffer_texture,
@@ -314,6 +341,11 @@ impl Application {
         context.set_texture(1, Some(&self.g_buffer_texture[2]));
         context.set_constant_buffer_vertex(0, &self.cb_view);
         context.set_constant_buffer_pixel(0, &self.cb_view);
+        context.set_vertices(
+            &self.screen_buffers.0,
+            &self.screen_buffers.1,
+            Topology::Triangles,
+        );
 
         // Directional Lighting
         context.set_shaders(
@@ -321,12 +353,39 @@ impl Application {
             &self.vertex_shaders[&ShaderKind::Screen],
             &self.pixel_shaders[&ShaderKind::DirectionalLighting],
         );
-        context.set_vertices(
-            &self.screen_buffers.0,
-            &self.screen_buffers.1,
-            Topology::Triangles,
+        for directional in &self.environment.directional_lights {
+            self.cb_light.update(
+                context,
+                &[
+                    directional.intensity.into(),
+                    directional.direction.into(),
+                    Vec4::zero(),
+                    Vec4::zero(),
+                ],
+            );
+            context.set_constant_buffer_pixel(1, &self.cb_light);
+            context.draw_with_indices(self.screen_buffers.1.len());
+        }
+
+        // Point Lighting
+        context.set_shaders(
+            &self.input_layout,
+            &self.vertex_shaders[&ShaderKind::Screen],
+            &self.pixel_shaders[&ShaderKind::PointLighting],
         );
-        context.draw_with_indices(self.screen_buffers.1.len());
+        for point in &self.environment.point_lights {
+            self.cb_light.update(
+                context,
+                &[
+                    point.intensity.into(),
+                    point.position.into(),
+                    Vec4::zero(),
+                    Vec4::zero(),
+                ],
+            );
+            context.set_constant_buffer_pixel(1, &self.cb_light);
+            context.draw_with_indices(self.screen_buffers.1.len());
+        }
 
         // Image Lighting
         if let Some(light) = &self.environment.image_light {
@@ -335,12 +394,17 @@ impl Application {
                 &self.vertex_shaders[&ShaderKind::Screen],
                 &self.pixel_shaders[&ShaderKind::ImageLighting],
             );
-            context.set_texture(2, Some(&light.texture));
-            context.set_vertices(
-                &self.screen_buffers.0,
-                &self.screen_buffers.1,
-                Topology::Triangles,
+            self.cb_light.update(
+                context,
+                &[
+                    Vec4::new(light.intensity, 0.0, 0.0, 0.0),
+                    Vec4::zero(),
+                    Vec4::zero(),
+                    Vec4::zero(),
+                ],
             );
+            context.set_constant_buffer_pixel(1, &self.cb_light);
+            context.set_texture(2, Some(&light.texture));
             context.draw_with_indices(self.screen_buffers.1.len());
         }
     }

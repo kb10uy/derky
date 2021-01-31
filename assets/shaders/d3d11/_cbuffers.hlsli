@@ -24,14 +24,21 @@
 // cbuffer DirectionalLight
 #define CBUFFER_DIRECTIONAL_LIGHT(slot) \
     cbuffer DirectionalLight : register(slot) { \
-        float4 directional_direction; \
         float4 directional_intensity; \
+        float4 directional_direction; \
+    }
+
+// cbuffer PointLight
+#define CBUFFER_POINT_LIGHT(slot) \
+    cbuffer PointLight : register(slot) { \
+        float4 point_intensity; \
+        float4 point_position; \
     }
 
 // cbuffer ImageLight
 #define CBUFFER_IMAGE_LIGHT(slot) \
     cbuffer ImageLight : register(slot) { \
-        float4 intensity; \
+        float4 image_intensity; \
     }
 
 #endif
