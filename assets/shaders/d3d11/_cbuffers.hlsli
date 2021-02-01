@@ -13,6 +13,7 @@
         float4x4 view_inv; \
         float4x4 projection_inv; \
         float4 screen_time; \
+        float4x4 prev_luminances; \
     }
 
 // cbuffer ModelData

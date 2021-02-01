@@ -50,6 +50,7 @@ struct ViewMatrices {
     view_inv: Mat4,
     projection_inv: Mat4,
     screen_time: Vec4,
+    luminances: Mat4,
 }
 
 pub struct Application {
@@ -295,7 +296,7 @@ impl Application {
 
         let light3 = &mut self.environment.point_lights[2];
         light3.intensity = if (time * 3.14).sin() > 0.0 {
-            Vec3::new(10.0, 10.0, 10.0)
+            Vec3::new(30.0, 30.0, 30.0)
         } else {
             Vec3::new(0.0, 0.0, 0.0)
         };
@@ -497,8 +498,9 @@ impl Application {
                 self.environment.view.screen_dimensions.x,
                 self.environment.view.screen_dimensions.y,
                 self.environment.elapsed.as_secs_f32(),
-                self.environment.luminance,
+                0.0,
             ),
+            luminances: self.environment.luminance.into(),
         }
     }
 }

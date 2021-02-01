@@ -76,7 +76,7 @@ pub struct Environment<T> {
     pub point_lights: Vec<PointLight>,
     pub view: View,
     pub elapsed: Duration,
-    pub luminance: f32,
+    pub luminance: [f32; 16],
 }
 
 impl<T> Environment<T> {
@@ -90,7 +90,7 @@ impl<T> Environment<T> {
             point_lights: vec![],
             view,
             elapsed: Duration::default(),
-            luminance: 0.0,
+            luminance: [0.0; 16],
         }
     }
 
@@ -99,6 +99,9 @@ impl<T> Environment<T> {
     }
 
     pub fn update_luminance(&mut self, luminance: f32) {
-        self.luminance = luminance;
+        let mut next_luminance = [0.0; 16];
+        (&mut next_luminance[..15]).copy_from_slice(&self.luminance[1..]);
+        next_luminance[15] = luminance;
+        self.luminance = next_luminance;
     }
 }

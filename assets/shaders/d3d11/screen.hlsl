@@ -20,6 +20,11 @@ float aces_filmic(float value) {
     return clamp((value * (value * 2.51 + 0.03)) / (value * (value * 2.43 + 0.59) + 0.14), 0.0, 1.0);
 }
 
+float average_previous_luminances() {
+    float4x4 real_luminances = prev_luminances / (1280 * 720 * 8);
+    return dot(mul(real_luminances * MAT_LUMINANCE_WEIGHTS, VEC_DOT_SUM), VEC_DOT_SUM);
+}
+
 CompositionInput vertex_main(VsInput input) {
     CompositionInput output;
     output.position = float4(input.position, 1.0);
@@ -34,7 +39,7 @@ CompositionOutput pixel_main(CompositionInput input) {
     uint this_luminance = uint(luminance(shaded_color) * 8.0);
     luminances.InterlockedAdd(0, this_luminance);
 
-    float prev_luminance_average = screen_time.w / (8.0 * 1280.0 * 720.0);
+    float prev_luminance_average = average_previous_luminances();
     float3 exposure_color = shaded_color * (0.18 / prev_luminance_average);
     float3 final_color = exposure_color;
 
