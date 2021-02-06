@@ -5,6 +5,9 @@
 #ifndef DERKY_CONSTANTS
 #define DERKY_CONSTANTS
 
+static const uint BLOCK_WIDTH = 16;
+static const uint BLOCK_HEIGHT = 16;
+
 static const float PI = 3.14159265;
 static const float E = 2.718281828;
 

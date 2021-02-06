@@ -1,8 +1,12 @@
-generated_at = "2021-01-31T20:55:02.717378700+09:00"
+generated_at = "2021-02-06T23:02:17.060215900+09:00"
+
+[[dependencies]]
+file = "compute-luminance.hlsl"
+dependencies = ["_constants.hlsli", "_cbuffers.hlsli", "_layouts.hlsli", "_functions.hlsli", "_constants.hlsli"]
 
 [[dependencies]]
 file = "screen.hlsl"
-dependencies = ["_cbuffers.hlsli", "_constants.hlsli", "_layouts.hlsli"]
+dependencies = ["_cbuffers.hlsli", "_constants.hlsli", "_layouts.hlsli", "_functions.hlsli", "_constants.hlsli"]
 
 [[dependencies]]
 file = "geometry.hlsl"

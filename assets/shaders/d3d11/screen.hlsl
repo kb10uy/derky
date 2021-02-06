@@ -1,6 +1,7 @@
 #include "_cbuffers.hlsli"
 #include "_constants.hlsli"
 #include "_layouts.hlsli"
+#include "_functions.hlsli"
 
 CBUFFER_VIEW_MATRICES(b0);
 
@@ -11,14 +12,6 @@ Texture2D depth : register(t4);
 Texture2D shaded : register(t5);
 
 RWByteAddressBuffer luminances : register(u4);
-
-float luminance(float3 color) {
-    return dot(color, VEC_RGB_LUMA);
-}
-
-float aces_filmic(float value) {
-    return clamp((value * (value * 2.51 + 0.03)) / (value * (value * 2.43 + 0.59) + 0.14), 0.0, 1.0);
-}
 
 float average_previous_luminances() {
     float4x4 real_luminances = prev_luminances / (1280 * 720 * 8);
