@@ -6,7 +6,7 @@ use crate::{
     d3d11::{
         buffer::{ConstantBuffer, IndexBuffer, IndexInteger, RwBuffer, VertexBuffer},
         com_support::{ComPtr, HresultErrorExt},
-        shader::{InputLayout, PixelShader, VertexShader},
+        shader::{ComputeShader, InputLayout, PixelShader, VertexShader},
         texture::{DepthStencil, RenderTarget, Sampler, Texture},
         vertex::{D3d11Vertex, Topology},
     },
@@ -202,6 +202,60 @@ impl Context {
     pub fn draw_with_indices(&self, indices: usize) {
         unsafe {
             self.immediate_context.DrawIndexed(indices as u32, 0, 0);
+        }
+    }
+
+    /// Sets a `ComputeShader`.
+    pub fn set_compute_shader(&self, shader: &ComputeShader) {
+        unsafe {
+            self.immediate_context.CSSetShader(
+                shader.shader.as_ptr(),
+                &null!(d3d11::ID3D11ClassInstance),
+                0,
+            )
+        }
+    }
+
+    /// Sets `RwBuffer`s for Compute Shader.
+    pub fn set_compute_rw_buffers<T>(&self, rw_start: usize, rw_buffers: &[RwBuffer<T>]) {
+        let uav: Vec<_> = rw_buffers.iter().map(|rwb| rwb.view.as_ptr()).collect();
+        unsafe {
+            self.immediate_context.CSSetUnorderedAccessViews(
+                rw_start as u32,
+                rw_buffers.len() as u32,
+                uav.as_ptr(),
+                null!(_),
+            );
+        }
+    }
+
+    /// Sets or releases `Texture` for Compute Shader.
+    pub fn set_compute_texture(&self, slot: usize, texture: Option<&Texture>) {
+        let texture_view = texture
+            .map(|p| p.view.as_ptr() as *mut d3d11::ID3D11ShaderResourceView)
+            .unwrap_or(null!(_));
+
+        unsafe {
+            self.immediate_context
+                .CSSetShaderResources(slot as u32, 1, &texture_view);
+        }
+    }
+
+    /// Sets `ConstantBuffer` for Compute Shader.
+    pub fn set_constant_buffer_compute<T>(&self, slot: usize, constant_buffer: &ConstantBuffer<T>) {
+        unsafe {
+            self.immediate_context.CSSetConstantBuffers(
+                slot as u32,
+                1,
+                &constant_buffer.buffer.as_ptr(),
+            );
+        }
+    }
+
+    /// Dispatch calls for Compute Shader.
+    pub fn dispatch_compute(&self, x: usize, y: usize, z: usize) {
+        unsafe {
+            self.immediate_context.Dispatch(x as u32, y as u32, z as u32);
         }
     }
 }

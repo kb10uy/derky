@@ -12,6 +12,7 @@ use crate::{
 use std::{ffi::c_void, fs::read, path::Path};
 
 use anyhow::{Context, Result};
+use d3d11::ID3D11ComputeShader;
 use winapi::um::d3d11;
 
 /// Contains a Vertex Shader.
@@ -76,6 +77,34 @@ impl PixelShader {
             shader
         };
         Ok(PixelShader { shader })
+    }
+}
+
+/// Contains a Compute Shader.
+pub struct ComputeShader {
+    pub(crate) shader: ComPtr<d3d11::ID3D11ComputeShader>,
+}
+
+impl ComputeShader {
+    pub fn load_object(device: &Device, filename: impl AsRef<Path>) -> Result<ComputeShader> {
+        let shader_binary = read(filename)?;
+
+        let shader = unsafe {
+            let mut shader = null!(d3d11::ID3D11ComputeShader);
+            device
+                .device
+                .CreateComputeShader(
+                    shader_binary.as_ptr() as *const c_void,
+                    shader_binary.len(),
+                    null!(d3d11::ID3D11ClassLinkage),
+                    &mut shader as *mut *mut d3d11::ID3D11ComputeShader,
+                )
+                .err()
+                .context("Failed to load Compute Shader")?;
+            comptrize!(shader);
+            shader
+        };
+        Ok(ComputeShader { shader })
     }
 }
 
