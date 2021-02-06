@@ -19,6 +19,7 @@ use std::{
 };
 
 use anyhow::{Context as AnyhowContext, Result};
+use d3d11::ID3D11RenderTargetView;
 use winapi::{
     shared::{dxgi, dxgiformat, dxgitype, minwindef::HINSTANCE__},
     um::{d3d11, d3dcommon},
@@ -49,6 +50,16 @@ impl Context {
     pub fn present(&self) {
         unsafe {
             self.swapchain.Present(0, 0);
+        }
+    }
+
+    pub fn reset_render_targets(&self) {
+        unsafe {
+            let rtv: Vec<_> = (0..8)
+                .map(|_| null!(d3d11::ID3D11RenderTargetView))
+                .collect();
+            self.immediate_context
+                .OMSetRenderTargets(rtv.len() as u32, rtv.as_ptr(), null!(_));
         }
     }
 
@@ -255,7 +266,8 @@ impl Context {
     /// Dispatch calls for Compute Shader.
     pub fn dispatch_compute(&self, x: usize, y: usize, z: usize) {
         unsafe {
-            self.immediate_context.Dispatch(x as u32, y as u32, z as u32);
+            self.immediate_context
+                .Dispatch(x as u32, y as u32, z as u32);
         }
     }
 }

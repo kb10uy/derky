@@ -17,7 +17,7 @@ use derky::{
             create_viewport, BlendOperation, BlendPair, BlendState, BlendWeight, Context, Device,
             Viewport,
         },
-        shader::{InputLayout, PixelShader, VertexShader},
+        shader::{ComputeShader, InputLayout, PixelShader, VertexShader},
         texture::{DepthStencil, RenderTarget, Sampler, Texture},
         vertex::{Topology, Vertex, SCREEN_QUAD_INDICES, SCREEN_QUAD_VERTICES},
     },
@@ -70,6 +70,9 @@ pub struct Application {
 
     /// `PixelShader` のコレクション
     pixel_shaders: HashMap<ShaderKind, PixelShader>,
+
+    /// 平均輝度を計算するための `ComputeShader`
+    cs_luminance: ComputeShader,
 
     /// `BlendState` のコレクション
     blend_states: HashMap<BlendStateKind, BlendState>,
@@ -186,6 +189,10 @@ impl Application {
             ShaderKind::ImageLighting,
             PixelShader::load_object(device, "assets/shaders/d3d11-compiled/lighting/image.pso")?,
         );
+        let cs_luminance = ComputeShader::load_object(
+            device,
+            "assets/shaders/d3d11-compiled/compute-luminance.cso",
+        )?;
 
         // Blend State
         blend_states.insert(
@@ -263,6 +270,7 @@ impl Application {
             room_model,
             vertex_shaders,
             pixel_shaders,
+            cs_luminance,
             blend_states,
             input_layout,
             sampler,
@@ -347,6 +355,8 @@ impl Application {
             context.set_vertices(&vb, &ib, Topology::Triangles);
             context.draw_with_indices(ib.len());
         }
+
+        context.reset_render_targets();
     }
 
     /// Lighting Buffer への描画をする。
@@ -432,6 +442,11 @@ impl Application {
             context.set_texture(3, Some(&light.texture));
             context.draw_with_indices(self.screen_buffers.1.len());
         }
+
+        context.reset_render_targets();
+        for i in 0..4 {
+            context.set_texture(i, None);
+        }
     }
 
     /// Buffer 同士の合成をする。
@@ -441,6 +456,8 @@ impl Application {
         target: &RenderTarget,
         depth_stencil: &DepthStencil,
     ) {
+        // self.compute_luminance(context);
+
         target.clear(context);
         depth_stencil.clear(context);
         self.uav_luminance.set(context, &[0u32; 8]);
@@ -484,6 +501,20 @@ impl Application {
         self.environment.update_luminance(luminance[0] as f32);
         info!(
             "Luminance: {:?}",
+            luminance[0] as f32 / (1280.0 * 720.0 * 8.0)
+        );
+    }
+
+    fn compute_luminance(&self, context: &Context) {
+        self.uav_luminance.set(context, &[0u32; 8]);
+        context.set_constant_buffer_compute(0, &self.cb_view);
+        context.set_compute_texture(0, Some(&self.lighting_buffer_texture));
+        context.set_compute_rw_buffers(4, from_ref(&self.uav_luminance));
+        context.set_compute_shader(&self.cs_luminance);
+        context.dispatch_compute(1280 / 16, 720 / 16, 1);
+        let luminance = self.uav_luminance.get(&context);
+        info!(
+            "Luminance (Compute): {:?}",
             luminance[0] as f32 / (1280.0 * 720.0 * 8.0)
         );
     }

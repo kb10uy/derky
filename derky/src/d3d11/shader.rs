@@ -12,7 +12,6 @@ use crate::{
 use std::{ffi::c_void, fs::read, path::Path};
 
 use anyhow::{Context, Result};
-use d3d11::ID3D11ComputeShader;
 use winapi::um::d3d11;
 
 /// Contains a Vertex Shader.
