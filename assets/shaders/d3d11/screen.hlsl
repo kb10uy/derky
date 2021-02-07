@@ -14,7 +14,10 @@ Texture2D shaded : register(t5);
 RWByteAddressBuffer luminances : register(u4);
 
 float average_previous_luminances() {
-    float4x4 real_luminances = prev_luminances / (1280 * 720 * 8);
+    float4x4 real_luminances =
+        prev_luminances
+        / (screen_time.x * screen_time.y / pow(LUMINANCE_SAMPLING_SPARSENESS, 2))
+        / 8.0;
     return dot(mul(real_luminances * MAT_LUMINANCE_WEIGHTS, VEC_DOT_SUM), VEC_DOT_SUM);
 }
 
@@ -29,8 +32,15 @@ CompositionInput vertex_main(VsInput input) {
 CompositionOutput pixel_main(CompositionInput input) {
     float3 shaded_color = shaded.Sample(globalSampler, input.uv).rgb;
 
-    uint this_luminance = uint(luminance(shaded_color) * 8.0);
-    luminances.InterlockedAdd(0, this_luminance);
+    float2 scaled_uv = screen_time.xy * input.uv;
+
+    if (
+        fmod(scaled_uv.x, LUMINANCE_SAMPLING_SPARSENESS) < 1.0 &&
+        fmod(scaled_uv.y, LUMINANCE_SAMPLING_SPARSENESS) < 1.0
+    ) {
+        uint this_luminance = uint(luminance(shaded_color) * 8.0);
+        luminances.InterlockedAdd(0, this_luminance);
+    }
 
     float prev_luminance_average = average_previous_luminances();
     float3 exposure_color = shaded_color * (0.18 / prev_luminance_average);

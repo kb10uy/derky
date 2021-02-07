@@ -5,6 +5,7 @@
 #ifndef DERKY_CONSTANTS
 #define DERKY_CONSTANTS
 
+static const float LUMINANCE_SAMPLING_SPARSENESS = 1.0;
 static const uint BLOCK_WIDTH = 16;
 static const uint BLOCK_HEIGHT = 16;
 

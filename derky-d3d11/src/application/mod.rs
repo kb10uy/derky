@@ -2,7 +2,11 @@ mod model;
 
 use model::{load_obj, ModelVertex, MODEL_VERTEX_LAYOUT};
 
-use std::{collections::HashMap, slice::from_ref, time::Duration};
+use std::{
+    collections::HashMap,
+    slice::from_ref,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use derky::{
@@ -499,24 +503,31 @@ impl Application {
 
         let luminance = self.uav_luminance.get(&context);
         self.environment.update_luminance(luminance[0] as f32);
+        /*
         info!(
             "Luminance: {:?}",
             luminance[0] as f32 / (1280.0 * 720.0 * 8.0)
         );
+        */
     }
 
     fn compute_luminance(&self, context: &Context) {
+        let started = Instant::now();
         self.uav_luminance.set(context, &[0u32; 8]);
         context.set_constant_buffer_compute(0, &self.cb_view);
         context.set_compute_texture(0, Some(&self.lighting_buffer_texture));
         context.set_compute_rw_buffers(4, from_ref(&self.uav_luminance));
         context.set_compute_shader(&self.cs_luminance);
         context.dispatch_compute(1280 / 16, 720 / 16, 1);
+        let elapsed = started.elapsed();
         let luminance = self.uav_luminance.get(&context);
+        /*
         info!(
-            "Luminance (Compute): {:?}",
-            luminance[0] as f32 / (1280.0 * 720.0 * 8.0)
+            "Luminance (Compute): {:?}, {:.2}ms",
+            luminance[0] as f32 / (1280.0 * 720.0 * 8.0),
+            elapsed.as_secs_f32() * 1000.0,
         );
+        */
     }
 
     fn generate_view_matrices(&self) -> ViewMatrices {
