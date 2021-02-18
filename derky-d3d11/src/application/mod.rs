@@ -499,8 +499,8 @@ impl Application {
         context.draw_with_indices(self.screen_buffers.1.len());
         context.set_texture(4, None);
 
-        let luminance = self.compute_luminance(context);
-        // let luminance = self.uav_luminance.get(&context)[0];
+        // let luminance = self.compute_luminance(context);
+        let luminance = self.uav_luminance.get(&context)[0];
         self.environment.update_luminance(luminance as f32);
         /*
         info!(
