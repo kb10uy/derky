@@ -42,7 +42,7 @@ pub fn run_make(args: MakeArguments) -> Result<()> {
         let mut files = vec![dependency.file.as_str()];
         files.append(&mut dependency.dependencies.iter().map(|d| d.as_str()).collect());
 
-        let latest_update = if updates.is_empty() {
+        let latest_update = if macros.is_empty() {
             get_latest_update(makefile.general.input_dir.as_str(), &files)?
         } else {
             system_now
