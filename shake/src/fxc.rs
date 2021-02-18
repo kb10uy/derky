@@ -54,7 +54,7 @@ impl Fxc {
             "Compiling {} (profile: {}, entrypoint: {})",
             definition.input, definition.profile, definition.entrypoint
         );
-        let args = repeat(&"/D")
+        let args: Vec<_> = repeat(&"/D")
             .take(macros.len())
             .interleave(macros)
             .map(|&s| s).chain(vec![
@@ -72,7 +72,7 @@ impl Fxc {
                 output_path.as_str(),
                 // Input file
                 input_path.as_str(),
-            ]);
+            ]).collect();
 
         debug!("Executing fxc with {:?}", &args);
         let mut command = Command::new(&self.fxc_path.as_str())
