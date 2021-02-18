@@ -36,11 +36,17 @@ pub fn run_make(args: MakeArguments) -> Result<()> {
             .context("Failed to parse dependency file")?;
 
     let mut updates = HashMap::<RelativePathBuf, SystemTime>::new();
+    let macros: Vec<_> = args.macro_definitions.iter().map(AsRef::as_ref).collect();
+    let system_now = SystemTime::now();
     for dependency in &depfile.dependencies {
         let mut files = vec![dependency.file.as_str()];
         files.append(&mut dependency.dependencies.iter().map(|d| d.as_str()).collect());
 
-        let latest_update = get_latest_update(makefile.general.input_dir.as_str(), &files)?;
+        let latest_update = if updates.is_empty() {
+            get_latest_update(makefile.general.input_dir.as_str(), &files)?
+        } else {
+            system_now
+        };
         updates.insert(dependency.file.clone(), latest_update);
     }
 
@@ -71,7 +77,7 @@ pub fn run_make(args: MakeArguments) -> Result<()> {
 
         if *source_update > target_update {
             eprintln!("Updating \"{}\"", definition.output);
-            fxc.compile(definition)
+            fxc.compile(definition, &macros)
                 .context(format!("Failed to compile \"{}\"", definition.input))?;
         } else {
             eprintln!("\"{}\" is up to date.", definition.output);

@@ -28,6 +28,10 @@ pub struct MakeArguments {
     /// Specifies the shader depfile path.
     #[clap(short, long, default_value = "shaders.deps")]
     pub depfile: String,
+
+    /// Defines macros and passes them to fxc.
+    #[clap(short = 'D', long = "define", multiple = true)]
+    pub macro_definitions: Vec<String>,
 }
 
 #[derive(Clap)]

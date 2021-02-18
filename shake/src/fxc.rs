@@ -6,12 +6,14 @@ use std::{
     env::current_dir,
     fs::create_dir_all,
     io::prelude::*,
+    iter::repeat,
     path::Path,
     process::ExitStatus,
     process::{Command, Stdio},
 };
 
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use log::{debug, info};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -41,7 +43,7 @@ impl Fxc {
         }
     }
 
-    pub fn compile(&self, definition: &MakefileDefinition) -> Result<ExitStatus> {
+    pub fn compile(&self, definition: &MakefileDefinition, macros: &[&str]) -> Result<ExitStatus> {
         let mut input_path = self.input_directory.clone();
         input_path.push(&definition.input);
         let mut output_path = self.output_directory.clone();
@@ -52,29 +54,32 @@ impl Fxc {
             "Compiling {} (profile: {}, entrypoint: {})",
             definition.input, definition.profile, definition.entrypoint
         );
-        let args = [
-            // Don't output the logo, and output include information
-            "/nologo",
-            // Target profile,
-            "/T",
-            &definition.profile,
-            // Entrypoint,
-            "/E",
-            &definition.entrypoint,
-            // No output file
-            // TODO: Support for non-Windows environment
-            "/Fo",
-            output_path.as_str(),
-            // Input file
-            input_path.as_str(),
-        ];
+        let args = repeat(&"/D")
+            .take(macros.len())
+            .interleave(macros)
+            .map(|&s| s).chain(vec![
+                // Don't output the logo, and output include information
+                "/nologo",
+                // Target profile,
+                "/T",
+                &definition.profile,
+                // Entrypoint,
+                "/E",
+                &definition.entrypoint,
+                // No output file
+                // TODO: Support for non-Windows environment
+                "/Fo",
+                output_path.as_str(),
+                // Input file
+                input_path.as_str(),
+            ]);
 
         debug!("Executing fxc with {:?}", &args);
         let mut command = Command::new(&self.fxc_path.as_str())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
-            .args(&args)
+            .args(args)
             .spawn()
             .context("Failed to spawn fxc")?;
 
