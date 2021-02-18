@@ -13,7 +13,7 @@ version = "1.0"
 version = "0.4"
 
 [dependencies.itertools]
-version = "0.9"
+version = "0.10"
 
 [dependencies.ultraviolet]
 version = "0.7"
