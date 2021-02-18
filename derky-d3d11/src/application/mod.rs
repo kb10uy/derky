@@ -460,8 +460,6 @@ impl Application {
         target: &RenderTarget,
         depth_stencil: &DepthStencil,
     ) {
-        // self.compute_luminance(context);
-
         target.clear(context);
         depth_stencil.clear(context);
         self.uav_luminance.set(context, &[0u32; 8]);
@@ -501,8 +499,9 @@ impl Application {
         context.draw_with_indices(self.screen_buffers.1.len());
         context.set_texture(4, None);
 
-        let luminance = self.uav_luminance.get(&context);
-        self.environment.update_luminance(luminance[0] as f32);
+        let luminance = self.compute_luminance(context);
+        // let luminance = self.uav_luminance.get(&context)[0];
+        self.environment.update_luminance(luminance as f32);
         /*
         info!(
             "Luminance: {:?}",
@@ -511,7 +510,7 @@ impl Application {
         */
     }
 
-    fn compute_luminance(&self, context: &Context) {
+    fn compute_luminance(&self, context: &Context) -> u32 {
         let started = Instant::now();
         self.uav_luminance.set(context, &[0u32; 8]);
         context.set_constant_buffer_compute(0, &self.cb_view);
@@ -519,8 +518,8 @@ impl Application {
         context.set_compute_rw_buffers(4, from_ref(&self.uav_luminance));
         context.set_compute_shader(&self.cs_luminance);
         context.dispatch_compute(1280 / 16, 720 / 16, 1);
-        let elapsed = started.elapsed();
         let luminance = self.uav_luminance.get(&context);
+        let elapsed = started.elapsed();
         /*
         info!(
             "Luminance (Compute): {:?}, {:.2}ms",
@@ -528,6 +527,8 @@ impl Application {
             elapsed.as_secs_f32() * 1000.0,
         );
         */
+
+        luminance[0]
     }
 
     fn generate_view_matrices(&self) -> ViewMatrices {

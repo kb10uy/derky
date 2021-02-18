@@ -3,6 +3,8 @@
 #include "_layouts.hlsli"
 #include "_functions.hlsli"
 
+#define NO_LUMINANCE_UPDATE
+
 CBUFFER_VIEW_MATRICES(b0);
 
 // Texture2D albedo : register(t0);
@@ -34,6 +36,7 @@ CompositionOutput pixel_main(CompositionInput input) {
 
     float2 scaled_uv = screen_time.xy * input.uv;
 
+#ifndef NO_LUMINANCE_UPDATE
     if (
         fmod(scaled_uv.x, LUMINANCE_SAMPLING_SPARSENESS) < 1.0 &&
         fmod(scaled_uv.y, LUMINANCE_SAMPLING_SPARSENESS) < 1.0
@@ -41,6 +44,7 @@ CompositionOutput pixel_main(CompositionInput input) {
         uint this_luminance = uint(luminance(shaded_color) * 8.0);
         luminances.InterlockedAdd(0, this_luminance);
     }
+#endif // NO_LUMINANCE_UPDATE
 
     float prev_luminance_average = average_previous_luminances();
     float3 exposure_color = shaded_color * (0.18 / prev_luminance_average);

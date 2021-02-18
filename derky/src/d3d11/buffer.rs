@@ -179,15 +179,28 @@ impl<T> RwBuffer<T> {
             d3d11::D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS,
             "Unordered",
         )?;
-        let staging = create_buffer(
-            device,
-            from_ref(initial),
-            d3d11::D3D11_USAGE_STAGING,
-            0,
-            d3d11::D3D11_CPU_ACCESS_WRITE | d3d11::D3D11_CPU_ACCESS_READ,
-            0,
-            "Unordered (Staging)",
-        )?;
+        let staging = unsafe {
+            let mut desc: d3d11::D3D11_BUFFER_DESC = zeroed();
+            buffer.GetDesc(&mut desc as *mut d3d11::D3D11_BUFFER_DESC);
+            desc.Usage = d3d11::D3D11_USAGE_STAGING;
+            desc.CPUAccessFlags = d3d11::D3D11_CPU_ACCESS_READ | d3d11::D3D11_CPU_ACCESS_WRITE;
+            desc.BindFlags = 0;
+            desc.MiscFlags = 0;
+
+            let mut buffer = null!(d3d11::ID3D11Buffer);
+            device
+                .device
+                .CreateBuffer(
+                    &desc,
+                    null!(_),
+                    &mut buffer as *mut *mut d3d11::ID3D11Buffer,
+                )
+                .err()
+                .context("Failed to create Unordered Staging Buffer")?;
+
+            comptrize!(buffer);
+            buffer
+        };
         let view = unsafe {
             let mut uav = null!(d3d11::ID3D11UnorderedAccessView);
             let mut desc = d3d11::D3D11_UNORDERED_ACCESS_VIEW_DESC {
@@ -251,13 +264,12 @@ impl<T> RwBuffer<T> {
             context.immediate_context.Map(
                 staging,
                 0,
-                d3d11::D3D11_MAP_WRITE,
+                d3d11::D3D11_MAP_READ,
                 0,
                 &mut mapped as *mut d3d11::D3D11_MAPPED_SUBRESOURCE,
             );
             copy_nonoverlapping(mapped.pData as *const T, &mut result as *mut T, 1);
             context.immediate_context.Unmap(staging, 0);
-
             result
         }
     }
